@@ -1,0 +1,22 @@
+{
+  "name": "the-alumni-center",
+  "private": true,
+  "version": "0.0.1",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:api": "pnpm --filter @alumni/api dev",
+    "dev:web": "pnpm --filter @alumni/web dev",
+    "dev:admin": "pnpm --filter @alumni/admin dev",
+    "dev:scan-station": "pnpm --filter @alumni/scan-station dev",
+    "dev:marketing": "pnpm --filter @alumni/marketing dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "db:generate": "pnpm --filter @alumni/db generate",
+    "db:migrate": "pnpm --filter @alumni/db migrate",
+    "db:seed": "pnpm --filter @alumni/api seed",
+    "lint": "pnpm -r lint"
+  },
+  "packageManager": "pnpm@9.0.0"
+}

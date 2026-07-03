@@ -1,0 +1,20 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1783054063482,
+      "tag": "0000_normal_the_captain",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783054163482,
+      "tag": "0001_reservation_no_overlap",
+      "breakpoints": true
+    }
+  ]
+}
