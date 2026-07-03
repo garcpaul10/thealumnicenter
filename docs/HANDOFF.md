@@ -2,14 +2,14 @@
 
 What changes hands when this project transfers to a new owner, what credentials must rotate, and the order to do it in to avoid downtime. Updated in the same commit that adds a new external dependency (a new SaaS account, a new credential type) to the system.
 
-> **Status:** Phase 1 only. Only GitHub and a local/Railway Postgres database currently exist as "things to hand off." This checklist grows as later phases add Vercel, Stripe, Stripe Connect, and Twilio — each gets its own numbered section below when it's actually wired into the system, not before.
+> **Status:** Phase 1 only. GitHub and a live Railway project (API + Postgres) currently exist as "things to hand off." This checklist grows as later phases add Vercel, Stripe, Stripe Connect, and Twilio — each gets its own numbered section below when it's actually wired into the system, not before.
 
 ## What exists today
 
 | System | What it is | Transfer method |
 |---|---|---|
-| GitHub repository | Source of truth for all code | Org transfer (preferred — preserves issues/PRs/history) or fork + push to a new remote |
-| Railway project (API + Postgres) | Hosts `apps/api` and the production database | [Railway project transfer](https://docs.railway.app/reference/project-transfers) to the new owner's account, or export/import the Postgres data into a database the new owner provisions |
+| GitHub repository (`garcpaul10/thealumnicenter`) | Source of truth for all code | Org transfer (preferred — preserves issues/PRs/history) or fork + push to a new remote |
+| Railway project `the-alumni-center` (API + Postgres) | Hosts `apps/api` (live at a `*.up.railway.app` domain, generated per-environment — not portable, the new owner gets a new one) and the production database, currently seeded only with fake/test data | [Railway project transfer](https://docs.railway.app/reference/project-transfers) to the new owner's account, or export/import the Postgres data into a database the new owner provisions. Either way, the API's public URL changes — anything that hardcodes it (nothing does yet; `NEXT_PUBLIC_API_URL` will when frontends exist) must be updated. |
 
 ## Credentials to rotate on handoff
 

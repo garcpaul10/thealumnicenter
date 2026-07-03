@@ -2,7 +2,7 @@
 
 Exact steps to stand up The Alumni Center on brand-new Railway and Vercel accounts. Updated in the same commit as any change to what's deployed or how.
 
-> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`). Sections for Vercel (frontend apps), Stripe, Stripe Connect, Twilio, and DNS are added as those phases land — see `CLAUDE.md` §6 for the build order.
+> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`), auto-deploying from `main`. No custom domain is attached yet — currently served on Railway's generated `*.up.railway.app` subdomain (get the current one with `railway domain --service api` or `railway status`; not hardcoded anywhere since it's account-specific and changes on handoff — see `docs/HANDOFF.md`). Sections for Vercel (frontend apps), Stripe, Stripe Connect, Twilio, and DNS are added as those phases land — see `CLAUDE.md` §6 for the build order.
 
 ## Railway — API + database
 
@@ -26,13 +26,14 @@ These steps are what was actually run to stand up the current environment (via t
    | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | `railway variable set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service api` — a live reference to the Postgres plugin, not a copied secret |
    | `NODE_ENV` | `production` | `railway variable set 'NODE_ENV=production' --service api` |
    | `PORT` | *(unset)* | Railway injects this automatically; `apps/api/src/env.ts` falls back to `4000` only for local dev |
-6. Run migrations against the Railway database (run from a developer machine — `railway run` executes locally with the linked environment's variables injected, it does not run inside the remote container):
+6. Run migrations against the Railway database from a developer machine. `railway run --service api ...` won't work for this — it injects the `api` service's variables, and `DATABASE_URL` there is the *private* `postgres.railway.internal` host, only reachable from inside Railway's network. Use the Postgres plugin's public proxy URL instead:
    ```sh
-   railway run --service api pnpm db:migrate
+   export DATABASE_URL=$(railway variable list --service Postgres --json | python3 -c "import json,sys; print(json.load(sys.stdin)['DATABASE_PUBLIC_URL'])")
+   pnpm --filter @alumni/db migrate
    ```
-7. Optionally seed a demo environment (do **not** run `db:seed` against a database with real member data):
+7. Optionally seed a demo environment the same way (do **not** run `db:seed` against a database with real member data):
    ```sh
-   railway run --service api pnpm db:seed
+   pnpm --filter @alumni/api seed
    ```
 
 ## Vercel — frontend apps
