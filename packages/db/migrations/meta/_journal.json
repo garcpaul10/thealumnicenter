@@ -15,6 +15,13 @@
       "when": 1783054163482,
       "tag": "0001_reservation_no_overlap",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1783055858828,
+      "tag": "0002_fat_vermin",
+      "breakpoints": true
     }
   ]
 }

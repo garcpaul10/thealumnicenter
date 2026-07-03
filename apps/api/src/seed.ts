@@ -10,6 +10,7 @@ import {
   staffUsers,
 } from "@alumni/db";
 import { recordPurchase } from "./ledger/ledger-service.js";
+import { hashPassword } from "./auth/password.js";
 
 /**
  * Seeds enough fake data to actually use the app after a fresh clone:
@@ -71,10 +72,16 @@ async function main() {
     sortOrder: 1,
   });
 
+  // Local-dev-only default so a fresh clone can log into the admin
+  // dashboard immediately. Override with SEED_ADMIN_PASSWORD for anything
+  // beyond a throwaway local environment — never run this seed against a
+  // database with real data (see the warning on `pnpm db:seed` in README.md).
+  const seedAdminPassword = process.env.SEED_ADMIN_PASSWORD ?? "changeme123";
   await db.insert(staffUsers).values({
     name: "Sam Staff",
     phone: "+15025550001",
     role: "admin",
+    passwordHash: await hashPassword(seedAdminPassword),
   });
 
   const [account] = await db
@@ -113,6 +120,7 @@ async function main() {
   console.log(`  Sport: ${basketball.name}`);
   console.log(`  Space: ${court1.name}`);
   console.log(`  Test account: ${account.phone} (55 tokens on participant "${owner.firstName}")`);
+  console.log(`  Admin login: +15025550001 / ${seedAdminPassword}`);
 
   await (db as any).$client?.end?.();
 }

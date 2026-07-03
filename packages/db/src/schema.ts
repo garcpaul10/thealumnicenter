@@ -187,6 +187,11 @@ export const staffUsers = pgTable("staff_users", {
   name: varchar("name", { length: 200 }).notNull(),
   phone: varchar("phone", { length: 20 }).notNull(),
   role: staffRoleEnum("role").notNull().default("staff"),
+  // Admin dashboard login (Phase 2) — distinct from kiosk_pin_hash, which is
+  // the scan-station kiosk-unlock PIN (Phase 4). Not in DESIGN.md's original
+  // schema; added here because the dashboard needs a real login credential.
+  // See CLAUDE.md §4.
+  passwordHash: text("password_hash"),
   kioskPinHash: text("kiosk_pin_hash"),
   createdAt: createdAt(),
 }, (table) => ({

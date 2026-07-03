@@ -47,7 +47,7 @@ pnpm db:migrate
 pnpm db:seed
 ```
 
-This creates the schema (31 tables) plus enough fake data to use the app immediately: a sport (Basketball), a space (Court 1), a schedule block, a token package, a staff user, and a test account (`+15025550100`) with two participants — one funded with 55 tokens through the real ledger write path.
+This creates the schema (31 tables) plus enough fake data to use the app immediately: a sport (Basketball), a space (Court 1), a schedule block, a token package, a seeded admin login (`+15025550001` / `changeme123`, override with `SEED_ADMIN_PASSWORD`), and a test account (`+15025550100`) with two participants — one funded with 55 tokens through the real ledger write path.
 
 Migrate the test database the same way before running tests:
 
@@ -57,11 +57,14 @@ DATABASE_URL=$TEST_DATABASE_URL pnpm db:migrate
 
 ## 5. Run the apps
 
-Currently only the backend exists (Phase 1). Frontend apps (`web`, `admin`, `scan-station`, `marketing`) will get their own `pnpm dev:*` scripts as they're built in later phases.
-
 ```sh
-pnpm dev:api   # starts the Fastify API on http://localhost:4000
+pnpm dev:api     # starts the Fastify API on http://localhost:4000
+pnpm dev:admin   # starts the staff dashboard on http://localhost:3011
 ```
+
+Run both at once in separate terminals, then open http://localhost:3011 and log in with the seeded admin credentials above. `web`, `scan-station`, and `marketing` don't exist yet — they'll get their own `pnpm dev:*` scripts as they're built in later phases.
+
+**⚠️ Known issue:** `pnpm --filter @alumni/admin build` currently fails (`next build`, even with `--webpack`, errors while exporting Next's own auto-generated `/_global-error` fallback page). `pnpm dev:admin` is unaffected — every feature works in dev mode. This blocks `next start` / a production Vercel deploy of `apps/admin` until resolved. Full troubleshooting history and the leading theory (possibly specific to this sandbox's non-LTS Node version) are in `CLAUDE.md` §4 — read that before touching this.
 
 ## 6. Run tests
 
@@ -69,7 +72,7 @@ pnpm dev:api   # starts the Fastify API on http://localhost:4000
 pnpm test
 ```
 
-The ledger tests (`apps/api/src/ledger/ledger-service.test.ts`) run against a real Postgres database (`TEST_DATABASE_URL`), not mocks, because the ledger's correctness depends on real transactional and row-locking behavior.
+The ledger and league tests (`apps/api/src/ledger/`, `apps/api/src/enrollments/`, `apps/api/src/league/`) run against a real Postgres database (`TEST_DATABASE_URL`), not mocks, because their correctness depends on real transactional and row-locking behavior.
 
 ## Repo layout
 
@@ -77,11 +80,11 @@ The ledger tests (`apps/api/src/ledger/ledger-service.test.ts`) run against a re
 /apps
   /marketing     → public website + landing page (Next.js, SSG) → Vercel
   /web           → member PWA (Next.js) → Vercel
-  /admin         → staff dashboard (Next.js) → Vercel
+  /admin         → staff dashboard (Next.js 16 / React 19) → Vercel
   /scan-station  → kiosk/staff scan app (Next.js) → Vercel
   /api           → backend (Fastify) → Railway
 /packages
-  /shared        → TypeScript types, token/points math, validation
+  /shared        → TypeScript types, token/points math, standings, validation
   /db            → Drizzle schema + migrations
 /brand           → logo and brand assets
 /docs            → DEPLOYMENT.md (fresh Railway/Vercel/Stripe/Twilio setup), HANDOFF.md (ownership transfer checklist)

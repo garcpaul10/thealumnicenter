@@ -16,4 +16,10 @@ export const env = {
   get nodeEnv() {
     return process.env.NODE_ENV ?? "development";
   },
+  get staffJwtSecret() {
+    return required("STAFF_JWT_SECRET");
+  },
+  get adminAppOrigin() {
+    return process.env.ADMIN_APP_ORIGIN ?? "http://localhost:3011";
+  },
 };

@@ -87,7 +87,7 @@ export interface RecordPurchaseInput {
 }
 
 /** Records a token purchase (and its bonus tokens, if any, as a separate ledger row). Call only after Stripe payment settlement — never on client-side confirmation. */
-export async function recordPurchase(db: Db, input: RecordPurchaseInput) {
+export async function recordPurchase(db: Db | Tx, input: RecordPurchaseInput) {
   const { tokensGranted, bonusTokens = 0 } = input;
   if (tokensGranted <= 0) throw new Error("tokensGranted must be positive");
 
@@ -144,7 +144,7 @@ export interface RecordRedemptionInput {
 }
 
 /** Records a token spend (walk-in, enrollment, pass, reservation, vendor order, lesson). Automatically earns loyalty points at the configured rate — points are earned on spend, not purchase. */
-export async function recordRedemption(db: Db, input: RecordRedemptionInput) {
+export async function recordRedemption(db: Db | Tx, input: RecordRedemptionInput) {
   if (input.amountTokens <= 0) throw new Error("amountTokens must be positive");
 
   return db.transaction(async (tx: Tx) => {
@@ -200,7 +200,7 @@ export interface RecordRefundInput {
 }
 
 /** Records a refund as a new offsetting credit row — never mutates the original redemption/purchase row. */
-export async function recordRefund(db: Db, input: RecordRefundInput) {
+export async function recordRefund(db: Db | Tx, input: RecordRefundInput) {
   if (input.amountTokens <= 0) throw new Error("amountTokens must be positive");
 
   return db.transaction(async (tx: Tx) => {
@@ -234,7 +234,7 @@ export interface RecordTransferInput {
 }
 
 /** Free, instant transfer between two participants of the *same* account. Produces a paired debit/credit that nets to zero — never crosses accounts. */
-export async function recordTransfer(db: Db, input: RecordTransferInput) {
+export async function recordTransfer(db: Db | Tx, input: RecordTransferInput) {
   if (input.amountTokens <= 0) throw new Error("amountTokens must be positive");
   if (input.fromParticipantId === input.toParticipantId) {
     throw new Error("Cannot transfer to the same participant");
@@ -309,7 +309,7 @@ export interface RecordAdjustmentInput {
 }
 
 /** Staff correction — the only ledger row type allowed to be an arbitrary signed amount without a purchase/spend behind it. Always requires a note. */
-export async function recordAdjustment(db: Db, input: RecordAdjustmentInput) {
+export async function recordAdjustment(db: Db | Tx, input: RecordAdjustmentInput) {
   if (input.amountTokens === 0) throw new Error("amountTokens must be non-zero");
   if (!input.note.trim()) throw new Error("Adjustments require a note explaining the correction");
 
