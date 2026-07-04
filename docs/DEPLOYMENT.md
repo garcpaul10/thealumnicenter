@@ -2,7 +2,7 @@
 
 Exact steps to stand up The Alumni Center on brand-new Railway and Vercel accounts. Updated in the same commit as any change to what's deployed or how.
 
-> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`), auto-deploying from `main`. No custom domain is attached yet — currently served on Railway's generated `*.up.railway.app` subdomain (get the current one with `railway domain --service api` or `railway status`; not hardcoded anywhere since it's account-specific and changes on handoff — see `docs/HANDOFF.md`). Sections for Vercel (frontend apps), Stripe, Stripe Connect, Twilio, and DNS are added as those phases land — see `CLAUDE.md` §6 for the build order.
+> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`), auto-deploying from `main`. `apps/admin` is deployed on Vercel (project `play-on1/the-alumni-center-admin`) via manual `vercel deploy --prod` — not yet wired to auto-deploy on push (see the Vercel section below). No custom domain is attached to either yet — both are on their platform's generated subdomain (account-specific, not hardcoded anywhere — see `docs/HANDOFF.md`). Sections for Stripe, Stripe Connect, Twilio, and DNS are added as those phases land — see `CLAUDE.md` §6 for the build order.
 
 ## Railway — API + database
 
@@ -38,7 +38,21 @@ These steps are what was actually run to stand up the current environment (via t
 
 ## Vercel — frontend apps
 
-Not yet applicable — `apps/marketing`, `apps/web`, `apps/admin`, `apps/scan-station` don't exist yet (Phases 2–5). When each is built, this section gets one subsection per app: Vercel project creation, root directory, build command, and the `NEXT_PUBLIC_API_URL` env var pointing at the Railway API's public URL.
+### apps/admin (staff dashboard)
+
+Steps actually run (via the `vercel` CLI — already authenticated in this environment; otherwise `npm install -g vercel`, `vercel login`):
+
+1. From `apps/admin/`: `vercel link --yes --project the-alumni-center-admin` — creates the Vercel project and links this directory to it. Vercel auto-detects Next.js and the build command from `package.json` (`next build --webpack` — see the note in `CLAUDE.md` §4 on why `--webpack`, not Turbopack).
+2. `vercel env add NEXT_PUBLIC_API_URL production` — set to the live Railway API URL (`railway domain --service api` or `railway status` to get the current one). This is the only env var `apps/admin` needs; the staff JWT never touches the browser, so no secret env vars are required client-side.
+3. `vercel deploy --prod` — builds and deploys. Live at the project's `*.vercel.app` domain (`vercel ls` or the Vercel dashboard to find it).
+
+**Not yet done — a deliberate gap, not an oversight:** this project isn't connected to the GitHub repo for auto-deploy-on-push (unlike Railway's `api` service). Every deploy so far has been a manual `vercel deploy --prod`. Connecting `vercel git connect` (or via the dashboard) to auto-deploy from `main` is a reasonable next step once the team is ready for that workflow — do it deliberately, not by default, since it changes who can trigger a production deploy (anyone who can push to `main`).
+
+Root directory for the Vercel project is `apps/admin` (set automatically by running `vercel link` from within that directory) — if reconfiguring from the dashboard instead, set "Root Directory" to `apps/admin` explicitly, since this is a pnpm monorepo.
+
+### apps/marketing, apps/web, apps/scan-station
+
+Not yet applicable — these apps don't exist yet (Phases 3–5). Follow the same pattern as `apps/admin` above when each is built: `vercel link` from the app's directory, set its required env vars, deploy.
 
 ## Stripe
 

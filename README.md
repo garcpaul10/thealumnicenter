@@ -64,7 +64,7 @@ pnpm dev:admin   # starts the staff dashboard on http://localhost:3011
 
 Run both at once in separate terminals, then open http://localhost:3011 and log in with the seeded admin credentials above. `web`, `scan-station`, and `marketing` don't exist yet — they'll get their own `pnpm dev:*` scripts as they're built in later phases.
 
-**⚠️ Known issue:** `pnpm --filter @alumni/admin build` currently fails (`next build`, even with `--webpack`, errors while exporting Next's own auto-generated `/_global-error` fallback page). `pnpm dev:admin` is unaffected — every feature works in dev mode. This blocks `next start` / a production Vercel deploy of `apps/admin` until resolved. Full troubleshooting history and the leading theory (possibly specific to this sandbox's non-LTS Node version) are in `CLAUDE.md` §4 — read that before touching this.
+**Note:** `apps/admin`'s `next build` runs with `--webpack` (set in `package.json`), not the newer Turbopack default — this sidesteps a Turbopack-specific crash. If `next build` ever behaves strangely again in a *local* environment, check the Node version first (some non-LTS versions have caused framework-internal build failures here that a real Vercel deploy did not reproduce) — see `CLAUDE.md` §4.
 
 ## 6. Run tests
 
