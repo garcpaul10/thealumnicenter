@@ -2,7 +2,7 @@
 
 Exact steps to stand up The Alumni Center on brand-new Railway and Vercel accounts. Updated in the same commit as any change to what's deployed or how.
 
-> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`), auto-deploying from `main`. `apps/admin` is deployed on Vercel (project `play-on1/the-alumni-center-admin`) via manual `vercel deploy --prod` — not yet wired to auto-deploy on push (see the Vercel section below). No custom domain is attached to either yet — both are on their platform's generated subdomain (account-specific, not hardcoded anywhere — see `docs/HANDOFF.md`). Sections for Stripe, Stripe Connect, Twilio, and DNS are added as those phases land — see `CLAUDE.md` §6 for the build order.
+> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`), auto-deploying from `main`. `apps/admin` and `apps/web` are both deployed on Vercel (`play-on1/the-alumni-center-admin`, `play-on1/the-alumni-center-web`) via manual `vercel deploy --prod` — neither is wired to auto-deploy on push yet (see the Vercel section below). No custom domain is attached to any of the three yet — all are on their platform's generated subdomain (account-specific, not hardcoded anywhere — see `docs/HANDOFF.md`). Sections for Stripe Connect and DNS are added as those phases land — see `CLAUDE.md` §6 for the build order. Member auth is Clerk, not Twilio directly (see `CLAUDE.md` §4) — there is no separate Twilio section because of that.
 
 ## Railway — API + database
 
@@ -28,6 +28,11 @@ These steps are what was actually run to stand up the current environment (via t
    | `PORT` | *(unset)* | Railway injects this automatically; `apps/api/src/env.ts` falls back to `4000` only for local dev |
    | `STAFF_JWT_SECRET` | random 32-byte hex | `railway variable set "STAFF_JWT_SECRET=$(openssl rand -hex 32)" --service api` |
    | `ADMIN_APP_ORIGIN` | the live `apps/admin` Vercel URL | `railway variable set 'ADMIN_APP_ORIGIN=https://the-alumni-center-admin.vercel.app' --service api` |
+   | `WEB_APP_ORIGIN` | the live `apps/web` Vercel URL | `railway variable set 'WEB_APP_ORIGIN=https://the-alumni-center-web.vercel.app' --service api` |
+   | `STRIPE_SECRET_KEY`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | from [dashboard.stripe.com/test/apikeys](https://dashboard.stripe.com/test/apikeys) | Test-mode keys for now — swap to live-mode keys (and rotate the webhook secret below) when this goes to real production |
+   | `STRIPE_WEBHOOK_SECRET` | signing secret from the webhook endpoint below | See "Stripe" section below for how this endpoint was created |
+   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | from the Clerk dashboard | Same Clerk instance used by `apps/web` — see the Clerk note under "Vercel — apps/web" below |
+   | `QR_SIGNING_SECRET` | random 32-byte hex | `railway variable set "QR_SIGNING_SECRET=$(openssl rand -hex 32)" --service api` |
    - `railway variable set` doesn't restart the service by default if run with `--skip-deploys`; without that flag it redeploys automatically. Either way, confirm with `railway service list --json` that a new deployment actually ran before assuming a var change took effect.
 6. Run migrations against the Railway database from a developer machine. `railway run --service api ...` won't work for this — it injects the `api` service's variables, and `DATABASE_URL` there is the *private* `postgres.railway.internal` host, only reachable from inside Railway's network. Use the Postgres plugin's public proxy URL instead:
    ```sh
@@ -55,17 +60,45 @@ Steps actually run (via the `vercel` CLI — already authenticated in this envir
 
 Root directory for the Vercel project is `apps/admin` (set automatically by running `vercel link` from within that directory) — if reconfiguring from the dashboard instead, set "Root Directory" to `apps/admin` explicitly, since this is a pnpm monorepo.
 
-### apps/marketing, apps/web, apps/scan-station
+### apps/web (member PWA)
 
-Not yet applicable — these apps don't exist yet (Phases 3–5). Follow the same pattern as `apps/admin` above when each is built: `vercel link` from the app's directory, set its required env vars, deploy.
+Same pattern as `apps/admin`, run from `apps/web/`:
+
+1. `vercel link --yes --project the-alumni-center-web`
+2. Env vars (all via `vercel env add <NAME> production`):
+   | Var | Value |
+   |---|---|
+   | `NEXT_PUBLIC_API_URL` | the live Railway API URL |
+   | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | same Clerk instance as the API (see Clerk note below) |
+   | `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | test-mode publishable key — safe client-side, not a secret |
+3. `vercel deploy --prod`
+
+**Clerk dashboard setting required, not just an env var:** the Clerk instance must have **phone number** enabled as a sign-in identifier with **password authentication turned off** (User & Authentication → Email, Phone, Username in the Clerk dashboard). Without this, `<SignIn />` renders a phone+password form instead of pure phone-OTP — this was misconfigured once during Phase 3 development and had to be fixed in the dashboard, since it's not something `apps/web`'s code controls.
+
+Same not-yet-connected-to-GitHub note as `apps/admin` applies here — deploys are manual `vercel deploy --prod` for now.
+
+### apps/marketing, apps/scan-station
+
+Not yet applicable — these apps don't exist yet (Phases 4–5). Follow the same pattern above when each is built: `vercel link` from the app's directory, set its required env vars, deploy.
 
 ## Stripe
 
-Not yet applicable (Phase 3 — token purchases; Phase 6 — Connect payouts). When wired up, this section documents: API key setup, webhook endpoint registration (exact path, e.g. `POST /webhooks/stripe`), which events are subscribed to, and Stripe Connect platform configuration for vendor/coach payouts.
+Test-mode keys from [dashboard.stripe.com/test/apikeys](https://dashboard.stripe.com/test/apikeys), set as `STRIPE_SECRET_KEY`/`NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` per the tables above.
 
-## Twilio (phone OTP)
+**Webhook endpoint** — created via the Stripe API directly (not the dashboard), pointing at the live Railway API:
+```sh
+curl https://api.stripe.com/v1/webhook_endpoints \
+  -u "$STRIPE_SECRET_KEY:" \
+  -d url="https://<railway-api-domain>/webhooks/stripe" \
+  -d "enabled_events[]"="checkout.session.completed"
+```
+The response's `secret` field is `STRIPE_WEBHOOK_SECRET` on the `api` Railway service — capture it immediately, Stripe won't show it again (re-fetching the endpoint by ID only returns whether a secret exists, not its value; if lost, delete and recreate the endpoint). Only `checkout.session.completed` is subscribed — that's the only event `apps/api/src/routes/webhooks-stripe.ts` handles. If the Railway API's domain ever changes (custom domain, project transfer), the webhook endpoint's `url` must be updated too (`POST /v1/webhook_endpoints/:id` with a new `url`) or purchases will silently stop crediting tokens.
 
-Not yet applicable (Phase 3). When wired up: Twilio Verify Service creation, the exact console steps, and rate-limit configuration notes.
+**Stripe Connect** (vendor/coach payouts) is Phase 6, not yet set up.
+
+## Twilio
+
+Not applicable — member auth is Clerk (phone-OTP), not raw Twilio Verify, per the decision in `CLAUDE.md` §4. Twilio may still be used later for SMS notification fallback (Phase 6) if that's not also handled by Clerk/another provider — revisit at that phase.
 
 ## Domains / DNS
 
