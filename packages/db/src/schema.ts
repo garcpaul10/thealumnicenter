@@ -152,10 +152,17 @@ export const accounts = pgTable("accounts", {
   phone: varchar("phone", { length: 20 }).notNull(),
   email: varchar("email", { length: 320 }),
   stripeCustomerId: text("stripe_customer_id"),
+  // Member auth is Clerk (phone-OTP), not DESIGN.md's originally-envisioned
+  // raw Twilio Verify — see CLAUDE.md CS4. This is the join key between a
+  // Clerk user and our accounts row; nullable because staff-created guest
+  // accounts (kiosk starter-pack sales, Phase 4) may not have a Clerk
+  // identity yet.
+  clerkUserId: text("clerk_user_id"),
   status: accountStatusEnum("status").notNull().default("active"),
   createdAt: createdAt(),
 }, (table) => ({
   phoneUnique: uniqueIndex("accounts_phone_unique").on(table.phone),
+  clerkUserIdUnique: uniqueIndex("accounts_clerk_user_id_unique").on(table.clerkUserId),
 }));
 
 export const participants = pgTable("participants", {

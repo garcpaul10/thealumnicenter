@@ -13,3 +13,12 @@ export class CrossAccountTransferError extends Error {
     this.name = "CrossAccountTransferError";
   }
 }
+
+export class InsufficientPointsBalanceError extends Error {
+  constructor(participantId: string, requested: number, available: number) {
+    super(
+      `Participant ${participantId} has insufficient points: requested ${requested}, available ${available}`,
+    );
+    this.name = "InsufficientPointsBalanceError";
+  }
+}

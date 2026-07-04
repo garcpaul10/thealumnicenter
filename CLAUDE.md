@@ -65,6 +65,13 @@ A multi-sport athletic facility where members buy **tokens** (Dave & Buster's-st
 | Score entry | **Staff only** (resolves DESIGN.md open question #2) | No dispute/correction workflow needed for v1. `POST /games/:id/score` requires staff auth; finalizing a score recalculates standings — see `apps/api/src/league/standings-service.ts`. |
 | Enrollment capacity | **Enforced with waitlist** (resolves DESIGN.md open question #6) | `offerings.capacity` checked at enrollment time; over capacity → `status=waitlisted`, no token charge until staff promotes via `POST /enrollments/:id/promote`. See `apps/api/src/enrollments/enrollment-service.ts`. |
 | Frontend stack (`apps/admin`) | Next.js 16 + React 19 + Tailwind CSS 3 | Started on Next 14.2.x/React 18 per the earlier framework decision. Bumping to Next 16/React 19 and building with `--webpack` instead of Turbopack fixed a real async-`cookies()`/`params` migration and a Turbopack-specific crash along the way. |
+| Member auth (`apps/web`) | **Clerk** (phone-OTP), not raw Twilio Verify as DESIGN.md originally sketched | User's explicit call — Clerk's free tier covers this facility's expected volume and saves hand-rolling OTP delivery/session management/rate-limiting. Staff dashboard auth (Phase 2) is intentionally left as-is, not migrated to Clerk — no user-facing benefit, would be pure churn. |
+| Member↔account linking | **Lazy get-or-create**, not a Clerk webhook | The first authenticated `/member/*` request from a new Clerk user creates (or links, by phone, if a staff-created guest account already exists) the `accounts`/owner-`participants` rows — see `apps/api/src/accounts/account-service.ts`. Simpler than standing up a Clerk webhook + svix verification for v1; `CLERK_WEBHOOK_SECRET` is reserved in `.env.example` if a real webhook is added later (e.g. to sync profile edits made in Clerk's hosted UI). |
+| Member↔API request pattern | Same as admin — **all calls server-side** (Server Components/Actions in `apps/web`), authenticated with the caller's Clerk session token (`auth().getToken()`) | Consistent with `apps/admin`'s pattern (CS4 above); browser never sees a bearer token for our API. One exception: the QR-token refresh loop on the card page polls a same-origin Next.js Route Handler (`apps/web/app/api/qr-token/[participantId]/route.ts`) from the client, which itself calls our API server-side — the Clerk token still never reaches client JS. |
+| Member-facing API namespace | All `apps/web`-facing routes live under `/member/*` on the same Fastify instance as the staff routes | `GET /offerings` already existed for staff (different auth, different shape) — same path, different prefix, avoids a route collision rather than needing a second deployed service. See `apps/api/src/server.ts`. |
+| QR signing | HS256 JWT (`jose`, same library as staff auth), 30s expiry, `sub` = participant ID | Matches DESIGN.md CS3 ("rotating signed token, never raw member ID"). `apps/api/src/card/qr-token.ts`; verification will be reused by the scan-station app in Phase 4. |
+| Rewards store points debit | Extended the ledger service's single-write-path rule to cover this, rather than writing `points_ledger`/`token_ledger` inserts in the rewards route | `redeemReward()` in `ledger-service.ts` debits points and (for `token_grant` rewards) credits tokens in one transaction — both or neither. `reward_redemptions` itself is a fulfillment record, not a ledger table, so the route inserts that row directly after the ledger call resolves. |
+| Third-party client construction (Stripe, Clerk) | **Always lazy** (constructed inside the request handler on first use, cached in a module-level variable) — never `const stripe = new Stripe(...)` at module top level | Caught before shipping: `server.ts` imports every route module at startup, so a top-level `new Stripe(env.stripeSecretKey)` throws the instant the module loads if `STRIPE_SECRET_KEY` isn't set yet — which crashes the *entire* API (staff dashboard included), not just the Stripe-dependent routes. Verified by actually starting the server with those vars unset (simulating Railway's state before the keys are added) before pushing — see `apps/api/src/routes/checkout.ts`'s `getStripe()` pattern, mirrored in `webhooks-stripe.ts` and `auth/member-middleware.ts`'s `getClerkClient()`. Apply this pattern to any future third-party client. |
 
 **Resolved:** `apps/admin`'s `next build` failed locally in this sandbox on Next's own auto-generated `/_global-error` fallback page (`Cannot read properties of null (reading 'useContext')` inside Next's internal `OuterLayoutRouter`) across every combination tried (Next 14.2.5/14.2.35/16.2.10, webpack/Turbopack, React 18/19, several pnpm linking modes, minimal-repro `layout.tsx`). The leading theory — this sandbox's non-LTS Node `v26.3.1`, outside Next's tested CI matrix — was **confirmed correct**: deploying to Vercel (`vercel deploy --prod` from `apps/admin`, project `play-on1/the-alumni-center-admin`) built and deployed successfully on the first try, no code changes needed. Live at `https://the-alumni-center-admin.vercel.app`. Lesson for future sessions: if `next build` behaves strangely in this specific sandbox again, suspect the Node version before the code — verify against a real deploy target early rather than spending a long time on local-only troubleshooting.
 
@@ -72,11 +79,13 @@ A multi-sport athletic facility where members buy **tokens** (Dave & Buster's-st
 
 ## 5. Assumptions made resolving DESIGN.md §5 open questions (flagging per kickoff instructions)
 
-Phase 1 required no product-level open-question resolution (pure ledger/schema). Phase 2 required resolving four — all asked of the user before implementing, answers recorded in §4 above and DESIGN.md's own numbering: #1 (team formation → captain self-serve), #2 (score entry → staff only), #3 (standings formula → sport-specific), #6 (capacity/waitlists → enforced with waitlist). Remaining open questions (refund/cancellation policy #5, playoffs/brackets #4, free play pass tiers #7-8, most of the loyalty/rewards-store questions, split-payment questions, notification provider #31) are deferred to the phases that actually need them.
+Phase 1 required no product-level open-question resolution (pure ledger/schema). Phase 2 required resolving four — all asked of the user before implementing, answers recorded in §4 above and DESIGN.md's own numbering: #1 (team formation → captain self-serve), #2 (score entry → staff only), #3 (standings formula → sport-specific), #6 (capacity/waitlists → enforced with waitlist). Phase 3 required two more, also asked before implementing: #27 (card photo → optional with avatar fallback) and #26 (Alumni Card cosmetics → full points-store unlock system, not a small default set — user's explicit call, overriding the recommendation). Remaining open questions (playoffs/brackets #4, free play pass tiers #7-8, most notification-provider questions #31) are deferred to the phases that actually need them.
 
-One implementation-level default was chosen without being asked (not a product decision, just a fallback for an unspecified sub-detail):
+Implementation-level defaults chosen without being asked (not product decisions, just fallbacks for unspecified sub-details — flagged here, not silently assumed):
 - **Points earn rate default:** 1 point per token redeemed (`pointsEarnedForRedemption()` in `packages/shared/src/token-math.ts` defaults `ratePointsPerToken` to `1`), matching DESIGN.md's own example under open question #22 ("1 pt/token redeemed"). This is a parameter, not a hardcoded constant — callable with a different rate once question #22 is actually answered.
 - **Schedule block overlap check is v1-simplified:** `apps/api/src/routes/schedule-blocks.ts` rejects overlaps by comparing each block's literal `starts_at`/`ends_at`, but does not expand `recurrence_rule` (RRULE) occurrences — two *recurring* weekly blocks whose instances would collide aren't caught. Acceptable for v1 (DESIGN.md open question #9, schedule admin UI scope); flagged here for whoever builds recurrence expansion later.
+- **Reservation refund policy defaulted to always-refund-in-full** (DESIGN.md open question #5, still unresolved as a product decision): `POST /member/reservations/:id/cancel` always refunds 100% regardless of how close to the reservation time the cancellation happens. Needs a real cancellation-window policy before this goes near production — flagging here rather than blocking Phase 3 on it.
+- **Split-payment reservations don't hold the slot against the DB exclusion constraint while pending.** The `reservations_no_overlap_per_space` constraint (migration `0001`) only blocks `booked`/`checked_in` rows — a `pending_split` reservation can theoretically race with another booking for the same slot before all shares are paid. DESIGN.md's own wording ("unpaid slot releases after a countdown") implies the slot *should* be held; v1 doesn't do this. Acceptable given split payments are a secondary path (most bookings are direct, single-payer), but a real fix (e.g. a short-lived advisory lock or including `pending_split` in the exclusion constraint) is needed before this is load-bearing for a busy facility.
 
 ---
 
@@ -85,7 +94,7 @@ One implementation-level default was chosen without being asked (not a product d
 ```
 /apps
   /marketing     → public website + landing page (Next.js, SSG) → Vercel        [Phase 5]
-  /web           → member PWA (Next.js) → Vercel                                 [Phase 3]
+  /web           → member PWA (Next.js 16 / React 19, Clerk auth) → Vercel        [Phase 3 — built]
   /admin         → staff dashboard (Next.js 16 / React 19) → Vercel              [Phase 2 — built]
   /scan-station  → kiosk/staff scan app (Next.js) → Vercel                       [Phase 4]
   /api           → backend (Fastify) → Railway                                   [Phase 1 — built]
@@ -102,7 +111,7 @@ README.md
 Build order (confirm with the user before starting each new phase):
 1. **Ledger + API foundation** — done. Schema (31 tables), ledger service, tests, seed script.
 2. **Admin dashboard** — done. Sport/space/offering/token-package/staff/vendor management, drag-and-drop schedule calendar, full league management (teams/games/scores/standings), member lookup + comps/refunds, staff phone+password auth.
-3. **Member PWA** — phone OTP auth, token purchase (Stripe), The Alumni Card, browse/purchase offerings, split payments, "what's open now", PWA installability.
+3. **Member PWA** — done. Clerk phone-OTP auth (lazy account creation), Stripe token purchase (webhook-driven ledger credit), The Alumni Card (SVG + rotating QR + full cosmetics unlock system), browse/purchase offerings, reservations, split payments, "what's open now", PWA manifest + service worker.
 4. **Scan-station app** — kiosk + staff PIN modes, three-way scan resolution, vendor POS mode, device-to-space binding.
 5. **Marketing site** — can be built in parallel with any other phase.
 6. **Vendor/coach settlement + notifications** — Stripe Connect, settlement job, web push + SMS.
@@ -119,8 +128,11 @@ Import from `apps/api/src/ledger/ledger-service.ts`. Every function runs inside 
 - `recordTransfer(db, { accountId, fromParticipantId, toParticipantId, amountTokens, ... })` — same-account only, throws `CrossAccountTransferError` otherwise.
 - `recordAdjustment(db, { ..., amountTokens (signed), note (required), ... })` — staff corrections.
 - `getParticipantBalance`, `getParticipantPointsBalance`, `getAccountTokenRollup` — read helpers, always derived from `SUM()`.
+- `redeemReward(db, { participantId, pointsCost, tokenGrantAmount?, accountId?, referenceType, referenceId, note? })` — debits points; if `tokenGrantAmount` is set, credits tokens in the same transaction. Throws `InsufficientPointsBalanceError`.
 
 **Do not** import `tokenLedger`/`pointsLedger` from `@alumni/db` anywhere else to `.insert()` into them. If a new feature needs to move tokens, add a function to `ledger-service.ts` or call an existing one.
+
+Split payments (`apps/api/src/split-payments/split-payment-service.ts`) build on top of `recordRedemption`/`recordRefund` rather than writing ledger rows themselves — `createSplitRequest`, `acceptSplitShare` (each participant pays their own share; completing the last share flips the underlying reservation to `booked`), `declineSplitShare` (cancels the whole request), `expireStaleSplitRequests` (refunds any already-paid shares — no cron infra yet, call this periodically once Phase 6 background jobs exist).
 
 ---
 
@@ -142,7 +154,24 @@ All routes except `/health` and `POST /auth/login` require `Authorization: Beare
 
 ---
 
-## 9. Testing & local dev
+## 9. Member API surface + auth (Phase 3)
+
+All routes below live under `/member/*` (e.g. `/member/me`) and require `Authorization: Bearer <Clerk session token>` (`requireMemberAuth`, `apps/api/src/auth/member-middleware.ts`), which lazily creates/links the caller's `accounts` row on first use (see §4).
+
+- `GET /me` — account + participants with token/points balances; `POST /me/participants` (add a family member); `PATCH /me/participants/:id` (nickname, photo, card cosmetics config)
+- `GET /participants/:id/qr-token` — signed, 30s-expiry QR payload; `GET /participants/:id/unlocked-cosmetics`
+- `GET /token-packages`, `POST /token-packages/:id/checkout` → Stripe Checkout session URL
+- `GET /offerings`, `POST /offerings/:id/purchase` — dispatches by offering type (enrollment for league/camp/lesson/clinic, a `passes` row for free_play_pass, immediate redemption for walk_in)
+- `GET /schedule-blocks/open-now` — "what's open now" (same v1 simplification as staff schedule-blocks re: recurrence)
+- `GET/POST /reservations`, `POST /reservations/:id/cancel`
+- `GET /reward-items`, `POST /reward-items/:id/redeem`, `GET /participants/:participantId/reward-redemptions`
+- `POST /split-requests`, `GET /split-requests/:id`, `POST /split-shares/:shareId/accept`, `POST /split-shares/:shareId/decline`
+
+Unprefixed and separate: `POST /webhooks/stripe` — Stripe calls this directly (not under `/member`), verified against the raw request body via `fastify-raw-body` (`apps/api/src/routes/webhooks-stripe.ts`). This is the *only* place a token purchase credits the ledger — `POST /token-packages/:id/checkout` never does, since the client fully controls whether that redirect is ever hit.
+
+---
+
+## 10. Testing & local dev
 
 - `apps/api` tests run against a real Postgres database (`TEST_DATABASE_URL`), not mocks — the ledger's correctness depends on real transactional/locking behavior that mocks can't verify.
 - `beforeEach` truncates all tables in the test DB. This is a test-harness concern only; it does not violate the "ledger rows are never updated/deleted" production invariant.
@@ -151,7 +180,7 @@ All routes except `/health` and `POST /auth/login` require `Authorization: Beare
 
 ---
 
-## 10. Changelog
+## 11. Changelog
 
 | Date | Change |
 |---|---|
@@ -159,3 +188,5 @@ All routes except `/health` and `POST /auth/login` require `Authorization: Beare
 | 2026-07-03 | Pushed to GitHub (`garcpaul10/thealumnicenter`). Deployed `apps/api` + Postgres to Railway (project `the-alumni-center`), fully via CLI — no dashboard clicks, config lives in `railway.json`. Fixed a real production bug caught before shipping: `apps/api`'s plain-`tsc` build produced a `dist/server.js` that couldn't import `@alumni/db`/`@alumni/shared` at runtime (those packages ship raw TS source, no dist of their own) — switched to `tsup` bundling those two workspace packages in (`apps/api/tsup.config.ts`). Migrations run successfully against the live Railway Postgres (31 tables confirmed). Vercel intentionally deferred until Phase 2 produces an actual frontend app to deploy. |
 | 2026-07-03 | **Phase 2 complete: admin dashboard.** Resolved 4 product open questions with the user (team formation, score entry, standings formula, capacity/waitlist — see §4/§5). Backend: staff phone+password auth (JWT), full CRUD for sports/spaces/schedule-blocks/offerings/token-packages/partners/staff-users, league management (teams/games/scores/sport-specific standings, recalculated on finalize), enrollments with capacity+waitlist, member lookup + comps/refunds via the existing ledger service, 15 new tests (18 total in apps/api, 33 across the workspace). Added `staff_users.password_hash` (migration `0002_fat_vermin.sql`). Fixed a real transaction-atomicity gap caught before merging: `createEnrollment` was calling `recordRedemption` and inserting the enrollment row as two separate DB calls — wrapped both in one outer transaction. Frontend: `apps/admin` (Next.js 16.2.10 + React 19 + Tailwind), login, full nav, all management pages, and a custom drag-and-drop schedule calendar (`@dnd-kit/core`, courts×time grid). |
 | 2026-07-03 | Deployed `apps/admin` to Vercel (project `play-on1/the-alumni-center-admin`, live at `https://the-alumni-center-admin.vercel.app`) — succeeded on the first try, confirming the `next build` failure hit during local development was specific to this sandbox's non-LTS Node version, not the code. See §4 for the resolved troubleshooting history. |
+| 2026-07-04 | Live-deploy hygiene fix: Railway's `api` service was missing migration `0002` (`staff_users.password_hash`) and the `STAFF_JWT_SECRET` env var — both landed in Phase 2 commits but were never pushed to the live service, silently breaking the deployed admin login while every local/test environment looked fine. Fixed (migration applied, secret set, redeployed) and added an explicit "this is ongoing maintenance, not one-time setup" callout to `docs/DEPLOYMENT.md` so new migrations/env vars get pushed to Railway as a standard part of landing them, not as an afterthought. |
+| 2026-07-04 | **Phase 3 complete: member PWA.** Resolved 2 more product open questions with the user before implementing (#27 card photo → optional/avatar fallback, #26 card cosmetics → full points-store unlock system, not a small default set). Backend: Clerk-authenticated `/member/*` API surface (lazy account/participant creation), Stripe Checkout + webhook-driven token purchase (ledger credit only on verified webhook, never client redirect), rotating signed QR tokens, rewards store (`redeemReward()` added to the ledger service — points debit + optional token credit in one transaction), member-facing offering purchase (walk-in/free-play/enrollment dispatch), reservations with cancel/refund, and full split-payment lifecycle (create/accept/decline/expire-with-refund). 8 new tests (26 total in apps/api). Added `accounts.clerk_user_id` (migration `0003`). Frontend: `apps/web` (Next.js 16/React 19/Tailwind, Clerk phone sign-in) — wallet, Alumni Card (SVG + live-rotating QR via a same-origin proxy route so the Clerk token never reaches client JS), browse/purchase, rewards store, PWA manifest + service worker. Flagged two real gaps rather than silently shipping them: reservation refund policy defaults to always-refund-in-full (open question #5 still unresolved), and split-payment reservations don't yet hold their slot against the DB exclusion constraint while pending (see §5). Caught and fixed a real deploy-breaking bug before pushing: `checkout.ts`/`webhooks-stripe.ts`/`member-middleware.ts` originally constructed the Stripe/Clerk clients at module load time, which would have crashed the *entire* live API (including the already-working staff dashboard) the moment this deployed, since Railway doesn't have Stripe/Clerk keys set yet — switched to lazy construction and verified by actually starting the server locally with those vars unset before pushing. Also found `fastify-raw-body@5.x` requires Fastify 5 while this project is on Fastify 4 — pinned to `^4.3.0` instead; also caught via the same local no-keys smoke test, not by code review. |

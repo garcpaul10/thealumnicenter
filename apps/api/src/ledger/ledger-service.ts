@@ -2,7 +2,7 @@ import { eq, sql, and } from "drizzle-orm";
 import type { PgTransaction } from "drizzle-orm/pg-core";
 import { tokenLedger, pointsLedger, participants, type Db } from "@alumni/db";
 import { pointsEarnedForRedemption, type BeneficiaryRef, type LedgerCreatedBy } from "@alumni/shared";
-import { InsufficientBalanceError, CrossAccountTransferError } from "./errors.js";
+import { InsufficientBalanceError, InsufficientPointsBalanceError, CrossAccountTransferError } from "./errors.js";
 
 /**
  * THE single write path for token_ledger and points_ledger.
@@ -336,5 +336,69 @@ export async function recordAdjustment(db: Db | Tx, input: RecordAdjustmentInput
       .returning();
 
     return { adjustmentRow };
+  });
+}
+
+export interface RedeemRewardInput {
+  participantId: string;
+  pointsCost: number;
+  tokenGrantAmount?: number; // set when the reward's type is token_grant — credits tokens in the same transaction
+  accountId?: string; // required if tokenGrantAmount is set
+  referenceType: string;
+  referenceId: string;
+  note?: string;
+}
+
+/**
+ * Spends points from the rewards store. If the reward grants tokens
+ * (reward_type = token_grant), the token credit happens in the same
+ * transaction as the points debit — both ledgers move together or not at
+ * all. reward_redemptions itself is not part of this single-write-path
+ * invariant (it's a fulfillment record, not a ledger); the caller inserts
+ * it after this resolves, referencing the returned pointsLedgerRow.
+ */
+export async function redeemReward(db: Db | Tx, input: RedeemRewardInput) {
+  if (input.pointsCost <= 0) throw new Error("pointsCost must be positive");
+  if (input.tokenGrantAmount && !input.accountId) {
+    throw new Error("accountId is required when tokenGrantAmount is set");
+  }
+
+  return db.transaction(async (tx: Tx) => {
+    await lockParticipant(tx, input.participantId);
+
+    const pointsBalance = await getParticipantPointsBalance(tx, input.participantId);
+    if (pointsBalance < input.pointsCost) {
+      throw new InsufficientPointsBalanceError(input.participantId, input.pointsCost, pointsBalance);
+    }
+
+    const [pointsLedgerRow] = await tx
+      .insert(pointsLedger)
+      .values({
+        participantId: input.participantId,
+        amount: -input.pointsCost,
+        type: "redeem",
+        referenceType: input.referenceType,
+        referenceId: input.referenceId,
+      })
+      .returning();
+
+    let tokenLedgerRow = null;
+    if (input.tokenGrantAmount) {
+      [tokenLedgerRow] = await tx
+        .insert(tokenLedger)
+        .values({
+          accountId: input.accountId!,
+          participantId: input.participantId,
+          amount: input.tokenGrantAmount,
+          type: "bonus",
+          referenceType: input.referenceType,
+          referenceId: input.referenceId,
+          note: input.note ?? "Rewards store token grant",
+          createdBy: "member",
+        })
+        .returning();
+    }
+
+    return { pointsLedgerRow, tokenLedgerRow };
   });
 }

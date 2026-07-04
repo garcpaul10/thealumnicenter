@@ -22,4 +22,22 @@ export const env = {
   get adminAppOrigin() {
     return process.env.ADMIN_APP_ORIGIN ?? "http://localhost:3011";
   },
+  get webAppOrigin() {
+    return process.env.WEB_APP_ORIGIN ?? "http://localhost:3012";
+  },
+  get clerkSecretKey() {
+    return required("CLERK_SECRET_KEY");
+  },
+  get clerkPublishableKey() {
+    return required("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY");
+  },
+  get stripeSecretKey() {
+    return required("STRIPE_SECRET_KEY");
+  },
+  get stripeWebhookSecret() {
+    return required("STRIPE_WEBHOOK_SECRET");
+  },
+  get qrSigningSecret() {
+    return required("QR_SIGNING_SECRET");
+  },
 };

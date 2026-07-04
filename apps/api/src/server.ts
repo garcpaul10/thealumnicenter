@@ -1,5 +1,6 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
+import rawBody from "fastify-raw-body";
 import { createDbClient } from "@alumni/db";
 import { env } from "./env.js";
 import "./types.js";
@@ -15,6 +16,14 @@ import { teamsRoutes } from "./routes/teams.js";
 import { gamesRoutes } from "./routes/games.js";
 import { enrollmentsRoutes } from "./routes/enrollments.js";
 import { membersRoutes } from "./routes/members.js";
+import { meRoutes } from "./routes/me.js";
+import { cardRoutes } from "./routes/card.js";
+import { rewardsRoutes } from "./routes/rewards.js";
+import { checkoutRoutes } from "./routes/checkout.js";
+import { memberOfferingsRoutes } from "./routes/member-offerings.js";
+import { reservationsRoutes } from "./routes/reservations.js";
+import { splitRequestsRoutes } from "./routes/split-requests.js";
+import { stripeWebhookRoutes } from "./routes/webhooks-stripe.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -23,12 +32,18 @@ export async function buildServer() {
   app.decorate("db", db);
 
   await app.register(cors, {
-    origin: [env.adminAppOrigin],
+    origin: [env.adminAppOrigin, env.webAppOrigin],
     credentials: true,
   });
 
+  // Needed only so routes/webhooks-stripe.ts can verify Stripe's signature
+  // against the exact raw bytes Stripe signed — normal JSON body parsing
+  // (request.body) still works everywhere else unaffected.
+  await app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
+
   app.get("/health", async () => ({ status: "ok" }));
 
+  // Staff dashboard (apps/admin) — unprefixed, staff/admin JWT auth.
   await app.register(authRoutes);
   await app.register(sportsRoutes);
   await app.register(spacesRoutes);
@@ -41,6 +56,26 @@ export async function buildServer() {
   await app.register(gamesRoutes);
   await app.register(enrollmentsRoutes);
   await app.register(membersRoutes);
+
+  // Stripe webhook — its own top-level path, matches what's configured in
+  // the Stripe dashboard; not under /member since Stripe calls it directly.
+  await app.register(stripeWebhookRoutes);
+
+  // Member PWA (apps/web) — /member prefix avoids path collisions with the
+  // staff routes above (e.g. both want "GET /offerings" with different
+  // auth/shape); Clerk session-token auth via requireMemberAuth.
+  await app.register(
+    async (memberApp) => {
+      await memberApp.register(meRoutes);
+      await memberApp.register(cardRoutes);
+      await memberApp.register(rewardsRoutes);
+      await memberApp.register(checkoutRoutes);
+      await memberApp.register(memberOfferingsRoutes);
+      await memberApp.register(reservationsRoutes);
+      await memberApp.register(splitRequestsRoutes);
+    },
+    { prefix: "/member" },
+  );
 
   return app;
 }
