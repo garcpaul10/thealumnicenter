@@ -20,12 +20,15 @@ These steps are what was actually run to stand up the current environment (via t
    ```
    Railway's builder (Railpack) can't infer a start command from a pnpm-workspace root on its own (no root `main`/`start` script) — this file is what makes deploys reproducible without a manual dashboard field. `apps/api`'s build (`tsup`, see `apps/api/tsup.config.ts`) bundles the `@alumni/db` and `@alumni/shared` workspace packages into `dist/server.js`, since those packages ship TypeScript source with no build step of their own and a plain `node dist/server.js` can't import `.ts` files directly.
    - **Note for future services:** this root-level `railway.json` only works while `api` is the *only* Railway-deployed service. If a second Railway service is added later (e.g. a settlement cron job in Phase 6), give it its own config file and point the service at it via Railway's "Config-as-code path" setting (the one piece of this that may require a one-time dashboard field — document the exact path here when that happens).
-5. Environment variables set on the `api` service via `railway variable set`:
+5. Environment variables set on the `api` service via `railway variable set` — cross-reference `.env.example` for the full current list:
    | Var | Value | How it was set |
    |---|---|---|
    | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` | `railway variable set 'DATABASE_URL=${{Postgres.DATABASE_URL}}' --service api` — a live reference to the Postgres plugin, not a copied secret |
    | `NODE_ENV` | `production` | `railway variable set 'NODE_ENV=production' --service api` |
    | `PORT` | *(unset)* | Railway injects this automatically; `apps/api/src/env.ts` falls back to `4000` only for local dev |
+   | `STAFF_JWT_SECRET` | random 32-byte hex | `railway variable set "STAFF_JWT_SECRET=$(openssl rand -hex 32)" --service api` |
+   | `ADMIN_APP_ORIGIN` | the live `apps/admin` Vercel URL | `railway variable set 'ADMIN_APP_ORIGIN=https://the-alumni-center-admin.vercel.app' --service api` |
+   - `railway variable set` doesn't restart the service by default if run with `--skip-deploys`; without that flag it redeploys automatically. Either way, confirm with `railway service list --json` that a new deployment actually ran before assuming a var change took effect.
 6. Run migrations against the Railway database from a developer machine. `railway run --service api ...` won't work for this — it injects the `api` service's variables, and `DATABASE_URL` there is the *private* `postgres.railway.internal` host, only reachable from inside Railway's network. Use the Postgres plugin's public proxy URL instead:
    ```sh
    export DATABASE_URL=$(railway variable list --service Postgres --json | python3 -c "import json,sys; print(json.load(sys.stdin)['DATABASE_PUBLIC_URL'])")
@@ -35,6 +38,8 @@ These steps are what was actually run to stand up the current environment (via t
    ```sh
    pnpm --filter @alumni/api seed
    ```
+
+> ⚠️ **Ongoing maintenance, not just initial setup:** steps 5–7 above are not one-time. Every time a later commit adds a **new migration** (packages/db/migrations/) or a **new required env var** (`.env.example`), it must be applied to Railway too — a migration sitting in the repo but never run against the live database, or an env var documented but never set on the service, will silently break production while every local/test environment looks fine. This exact gap happened once already: Phase 2 added `staff_users.password_hash` (migration `0002`) and `STAFF_JWT_SECRET`, both of which worked locally but were never pushed to Railway, breaking login on the live deploy until caught and fixed manually. Before declaring any deploy-affecting change "done," verify it against the actual live service, not just `pnpm test`.
 
 ## Vercel — frontend apps
 
