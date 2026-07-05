@@ -24,6 +24,12 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@alumni/scan-station", "dev"],
       "port": 3013
+    },
+    {
+      "name": "marketing",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@alumni/marketing", "dev"],
+      "port": 3014
     }
   ]
 }

@@ -28,6 +28,7 @@ import { kioskDevicesRoutes } from "./routes/kiosk-devices.js";
 import { scanStationRoutes } from "./routes/scan-station.js";
 import { menuItemsRoutes } from "./routes/menu-items.js";
 import { vendorOrdersRoutes } from "./routes/vendor-orders.js";
+import { publicRoutes } from "./routes/public.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -36,7 +37,7 @@ export async function buildServer() {
   app.decorate("db", db);
 
   await app.register(cors, {
-    origin: [env.adminAppOrigin, env.webAppOrigin, env.scanStationAppOrigin],
+    origin: [env.adminAppOrigin, env.webAppOrigin, env.scanStationAppOrigin, env.marketingAppOrigin],
     credentials: true,
   });
 
@@ -46,6 +47,11 @@ export async function buildServer() {
   await app.register(rawBody, { field: "rawBody", global: false, runFirst: true });
 
   app.get("/health", async () => ({ status: "ok" }));
+
+  // Marketing site (apps/marketing) — fully public, no auth. Kept as its
+  // own namespace rather than reusing the staff/member schedule routes so
+  // it can never accidentally expose participant/account identity.
+  await app.register(publicRoutes);
 
   // Staff dashboard (apps/admin) — unprefixed, staff/admin JWT auth.
   await app.register(authRoutes);

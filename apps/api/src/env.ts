@@ -46,4 +46,7 @@ export const env = {
   get scanStationAppOrigin() {
     return process.env.SCAN_STATION_APP_ORIGIN ?? "http://localhost:3013";
   },
+  get marketingAppOrigin() {
+    return process.env.MARKETING_APP_ORIGIN ?? "http://localhost:3014";
+  },
 };

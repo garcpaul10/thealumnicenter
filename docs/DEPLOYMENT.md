@@ -2,7 +2,7 @@
 
 Exact steps to stand up The Alumni Center on brand-new Railway and Vercel accounts. Updated in the same commit as any change to what's deployed or how.
 
-> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`), auto-deploying from `main`. `apps/admin`, `apps/web`, and `apps/scan-station` are all deployed on Vercel (`play-on1/the-alumni-center-admin`, `play-on1/the-alumni-center-web`, `play-on1/the-alumni-center-scan-station`) via manual `vercel deploy --prod` — none is wired to auto-deploy on push yet (see the Vercel section below). No custom domain is attached to any of the four yet — all are on their platform's generated subdomain (account-specific, not hardcoded anywhere — see `docs/HANDOFF.md`). Sections for Stripe Connect and DNS are added as those phases land — see `CLAUDE.md` §6 for the build order. Member auth is Clerk, not Twilio directly (see `CLAUDE.md` §4) — there is no separate Twilio section because of that.
+> **Status:** Live. `apps/api` + Postgres are deployed on Railway (project `the-alumni-center`), auto-deploying from `main`. `apps/admin`, `apps/web`, `apps/scan-station`, and `apps/marketing` are all deployed on Vercel (`play-on1/the-alumni-center-admin`, `play-on1/the-alumni-center-web`, `play-on1/the-alumni-center-scan-station`, `play-on1/the-alumni-center-marketing`) via manual `vercel deploy --prod` — none is wired to auto-deploy on push yet (see the Vercel section below). No custom domain is attached to any of the five yet — all are on their platform's generated subdomain (account-specific, not hardcoded anywhere — see `docs/HANDOFF.md`). All five build-order phases in `CLAUDE.md` §6 are now built; a Stripe Connect section is added once Phase 6 lands. Member auth is Clerk, not Twilio directly (see `CLAUDE.md` §4) — there is no separate Twilio section because of that.
 
 ## Railway — API + database
 
@@ -35,6 +35,7 @@ These steps are what was actually run to stand up the current environment (via t
    | `QR_SIGNING_SECRET` | random 32-byte hex | `railway variable set "QR_SIGNING_SECRET=$(openssl rand -hex 32)" --service api` |
    | `KIOSK_JWT_SECRET` | random 32-byte hex | `railway variable set "KIOSK_JWT_SECRET=$(openssl rand -hex 32)" --service api` — deliberately a different secret from `STAFF_JWT_SECRET` (see `CLAUDE.md` §4) |
    | `SCAN_STATION_APP_ORIGIN` | the live `apps/scan-station` Vercel URL | `railway variable set 'SCAN_STATION_APP_ORIGIN=https://the-alumni-center-scan-station.vercel.app' --service api` |
+   | `MARKETING_APP_ORIGIN` | the live `apps/marketing` Vercel URL | `railway variable set 'MARKETING_APP_ORIGIN=https://the-alumni-center-marketing.vercel.app' --service api` |
    - `railway variable set` doesn't restart the service by default if run with `--skip-deploys`; without that flag it redeploys automatically. Either way, confirm with `railway service list --json` that a new deployment actually ran before assuming a var change took effect.
 6. Run migrations against the Railway database from a developer machine. `railway run --service api ...` won't work for this — it injects the `api` service's variables, and `DATABASE_URL` there is the *private* `postgres.railway.internal` host, only reachable from inside Railway's network. Use the Postgres plugin's public proxy URL instead:
    ```sh
@@ -94,9 +95,23 @@ Unlike `apps/admin`/`apps/web`, this app has no login-time secrets to set — it
 
 Same not-yet-connected-to-GitHub note as `apps/admin`/`apps/web` applies here — deploys are manual `vercel deploy --prod` for now.
 
-### apps/marketing
+### apps/marketing (public site)
 
-Not yet applicable — this app doesn't exist yet (Phase 5). Follow the same pattern above when it's built: `vercel link` from the app's directory, set its required env vars, deploy.
+Same pattern as the others, run from `apps/marketing/`:
+
+1. `vercel link --yes --project the-alumni-center-marketing`
+2. Env vars (via `vercel env add <NAME> production`):
+   | Var | Value |
+   |---|---|
+   | `NEXT_PUBLIC_API_URL` | the live Railway API URL |
+   | `NEXT_PUBLIC_WEB_APP_URL` | the live `apps/web` Vercel URL — what the "Become a member" CTA links to |
+3. `vercel deploy --prod`
+
+No login-time secrets at all — this app only calls the fully unauthenticated `/public/*` API routes (see `CLAUDE.md` §11). After deploying, set `MARKETING_APP_ORIGIN` on Railway's `api` service to this app's live URL (see the Railway env var table above) so CORS allows it.
+
+**Known gap, not an oversight:** the homepage's offering cards use color-block placeholders in place of real facility photography, which doesn't exist in this environment yet — see `CLAUDE.md` §5/§11 for the flagged follow-up (a real photo shoot or licensed stock).
+
+Same not-yet-connected-to-GitHub note as the other Vercel apps applies here — deploys are manual `vercel deploy --prod` for now.
 
 ## Stripe
 
