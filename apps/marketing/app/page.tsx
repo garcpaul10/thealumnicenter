@@ -1,7 +1,10 @@
+import Image from "next/image";
 import Link from "next/link";
 import { SiteHeader } from "./components/SiteHeader";
 import { SiteFooter } from "./components/SiteFooter";
 import { LiveScoreboard } from "./components/LiveScoreboard";
+import { StatsBand } from "./components/StatsBand";
+import { TopTicker } from "./components/TopTicker";
 import { OfferingCards } from "./components/OfferingCards";
 import { ParallaxImage } from "./components/ParallaxImage";
 import { BlobBackground } from "./components/BlobBackground";
@@ -14,15 +17,26 @@ export default async function HomePage() {
 
   return (
     <main>
-      <section className="relative h-[92vh] min-h-[560px] overflow-hidden">
+      <section className="relative flex h-[96vh] min-h-[640px] flex-col overflow-hidden">
         <ParallaxImage src="https://picsum.photos/seed/alumnicenter-main-hero/1800/1400" alt="" />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-black/40 to-night" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/45 to-night" />
         <BlobBackground />
 
-        <SiteHeader variant="overlay" />
+        <div className="absolute inset-x-0 top-0 z-20">
+          <SiteHeader variant="overlay" />
+          <TopTicker />
+        </div>
 
-        <div className="relative z-10 flex h-full flex-col items-center justify-center px-6 text-center text-white">
-          <p className="mb-5 text-xs tracking-[0.3em] text-sky-200">VARSITY FOR EVERYONE</p>
+        <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center text-white">
+          <Image
+            src="/alumni-center-logo.png"
+            alt="The Alumni Center"
+            width={320}
+            height={320}
+            priority
+            className="h-32 w-auto drop-shadow-2xl sm:h-44"
+          />
+          <p className="mb-5 mt-6 text-xs tracking-[0.3em] text-sky-200">VARSITY FOR EVERYONE</p>
           <h1 className="max-w-2xl text-5xl font-semibold leading-[1.05] tracking-tight drop-shadow-lg sm:text-7xl">
             One card.
             <br />
@@ -58,6 +72,7 @@ export default async function HomePage() {
       <div id="live">
         <LiveScoreboard />
       </div>
+      <StatsBand />
 
       <section className="px-6 py-16 sm:px-10">
         <div className="mb-8 flex items-center justify-between">

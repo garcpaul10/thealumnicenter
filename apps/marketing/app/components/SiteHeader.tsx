@@ -9,17 +9,19 @@ const NAV_LINKS = [
 ];
 
 /**
- * `variant="overlay"` sits absolutely on top of a dark hero image (white
- * text, glass pill nav) — `variant="light"` (default) is the normal
- * in-flow header for every other page. Logo is intentionally large (h-16+)
- * per explicit feedback that it was too small to actually read before.
+ * `variant="overlay"` is styled for use on top of a dark hero image (white
+ * text, glass pill nav) — the caller is responsible for absolute-positioning
+ * it (see homepage, which wraps it with a ticker in one positioned
+ * container). `variant="light"` (default) is the normal in-flow header for
+ * every other page. Logo is intentionally large (h-20+) per explicit
+ * feedback that it was too small to actually read before.
  */
 export function SiteHeader({ variant = "light" }: { variant?: "light" | "overlay" }) {
   const webAppUrl = process.env.NEXT_PUBLIC_WEB_APP_URL ?? "#";
   const overlay = variant === "overlay";
 
   return (
-    <header className={`${overlay ? "absolute inset-x-0 top-0 z-20" : "relative"} flex items-center justify-between px-6 py-6 sm:px-10`}>
+    <header className="relative flex items-center justify-between px-6 py-6 sm:px-10">
       <Link href="/" className="shrink-0">
         <Image
           src="/alumni-center-logo.png"
@@ -27,7 +29,7 @@ export function SiteHeader({ variant = "light" }: { variant?: "light" | "overlay
           width={220}
           height={220}
           priority
-          className={`w-auto ${overlay ? "h-20 drop-shadow-lg sm:h-24" : "h-16 sm:h-20"}`}
+          className={`w-auto ${overlay ? "h-24 drop-shadow-lg sm:h-28" : "h-20 sm:h-24"}`}
         />
       </Link>
       <nav
