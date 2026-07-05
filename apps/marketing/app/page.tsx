@@ -1,4 +1,5 @@
-import Image from "next/image";
+import { SiteHeader } from "./components/SiteHeader";
+import { SiteFooter } from "./components/SiteFooter";
 import { LiveScoreboard } from "./components/LiveScoreboard";
 import { OfferingCards } from "./components/OfferingCards";
 
@@ -7,18 +8,7 @@ export default function HomePage() {
 
   return (
     <main>
-      <header className="flex items-center justify-between px-6 py-5 sm:px-10">
-        <Image src="/alumni-center-logo.png" alt="The Alumni Center" width={140} height={140} priority className="h-11 w-auto" />
-        <nav className="hidden gap-8 text-sm text-neutral-600 sm:flex">
-          <span>Sports</span>
-          <span>Leagues</span>
-          <span>Membership</span>
-          <span>Locations</span>
-        </nav>
-        <a href={webAppUrl} className="rounded-md bg-brand px-4 py-2 text-sm font-medium text-white transition-transform hover:scale-105">
-          Join
-        </a>
-      </header>
+      <SiteHeader />
 
       <section className="px-6 pb-20 pt-24 text-center sm:pt-32">
         <p className="mb-5 text-xs tracking-[0.3em] text-neutral-400">VARSITY FOR EVERYONE</p>
@@ -62,9 +52,7 @@ export default function HomePage() {
         </p>
       </section>
 
-      <footer className="border-t border-neutral-100 px-6 py-8 text-center text-xs text-neutral-400">
-        Locations &middot; About &middot; Careers &middot; Contact
-      </footer>
+      <SiteFooter />
     </main>
   );
 }
