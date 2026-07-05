@@ -3,23 +3,14 @@
 @tailwind utilities;
 
 body {
-  @apply bg-night text-white;
+  @apply bg-white text-neutral-900;
 }
 
-@keyframes bob {
-  0%, 100% { transform: translateY(0) rotate(-8deg); }
-  50% { transform: translateY(-6px) rotate(8deg); }
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
 }
 
-@keyframes marquee {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
-.animate-bob {
-  animation: bob 2.6s ease-in-out infinite;
-}
-
-.animate-marquee {
-  animation: marquee 24s linear infinite;
+.animate-pulse-dot {
+  animation: pulse-dot 1.6s ease-in-out infinite;
 }
