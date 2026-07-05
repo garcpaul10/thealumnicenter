@@ -40,4 +40,10 @@ export const env = {
   get qrSigningSecret() {
     return required("QR_SIGNING_SECRET");
   },
+  get kioskJwtSecret() {
+    return required("KIOSK_JWT_SECRET");
+  },
+  get scanStationAppOrigin() {
+    return process.env.SCAN_STATION_APP_ORIGIN ?? "http://localhost:3013";
+  },
 };

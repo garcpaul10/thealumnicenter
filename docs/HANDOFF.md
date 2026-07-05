@@ -2,7 +2,7 @@
 
 What changes hands when this project transfers to a new owner, what credentials must rotate, and the order to do it in to avoid downtime. Updated in the same commit that adds a new external dependency (a new SaaS account, a new credential type) to the system.
 
-> **Status:** GitHub, a live Railway project (API + Postgres), two Vercel projects (`apps/admin`, `apps/web`), a Clerk instance, and a Stripe (test mode) account currently exist as "things to hand off." This checklist grows as later phases add Stripe Connect and web push — each gets its own numbered section below when it's actually wired into the system, not before.
+> **Status:** GitHub, a live Railway project (API + Postgres), three Vercel projects (`apps/admin`, `apps/web`, `apps/scan-station`), a Clerk instance, and a Stripe (test mode) account currently exist as "things to hand off." This checklist grows as later phases add Stripe Connect and web push — each gets its own numbered section below when it's actually wired into the system, not before.
 
 ## What exists today
 
@@ -12,6 +12,7 @@ What changes hands when this project transfers to a new owner, what credentials 
 | Railway project `the-alumni-center` (API + Postgres) | Hosts `apps/api` (live at a `*.up.railway.app` domain, generated per-environment — not portable, the new owner gets a new one) and the production database, currently seeded only with fake/test data | [Railway project transfer](https://docs.railway.app/reference/project-transfers) to the new owner's account, or export/import the Postgres data into a database the new owner provisions. Either way, the API's public URL changes — anything that hardcodes it (nothing does; both Vercel projects' `NEXT_PUBLIC_API_URL` and the Stripe webhook endpoint's `url` all need updating) must be updated. |
 | Vercel project `play-on1/the-alumni-center-admin` | Hosts `apps/admin` (live at a `*.vercel.app` domain, generated per-project — not portable) | [Vercel project transfer](https://vercel.com/docs/accounts/team-members-and-roles/transfer-a-project) to the new owner's team, or the new owner runs `vercel link` fresh against their own account per `docs/DEPLOYMENT.md` and the old project is deleted. Not yet connected to GitHub for auto-deploy (see `docs/DEPLOYMENT.md`) — that's one less thing to reconfigure on transfer, for now. |
 | Vercel project `play-on1/the-alumni-center-web` | Hosts `apps/web` (member PWA), same transfer method and caveats as the admin project above | Same as above |
+| Vercel project `play-on1/the-alumni-center-scan-station` | Hosts `apps/scan-station` (kiosk scan app), same transfer method and caveats as the admin project above. Has no login secrets of its own — kiosk devices re-register (`POST /kiosk-devices`) against whatever API the new owner ends up with, which also naturally invalidates every old device's token if `KIOSK_JWT_SECRET` is rotated (see below) | Same as above |
 | Clerk instance (phone-OTP member auth) | Backs `apps/web`'s sign-in/sign-up and `apps/api`'s member-auth token verification | Clerk supports transferring an application to another account/organization from its dashboard — do this rather than recreating the instance, since recreating changes every member's Clerk user ID and would orphan `accounts.clerk_user_id` links |
 | Stripe account (test mode) | Token package checkout + the `checkout.session.completed` webhook feeding the ledger | Stripe doesn't support account transfer between unrelated owners — the new owner creates their own account, and its keys + a freshly created webhook endpoint replace the old ones everywhere they're set (Railway `api`, both Vercel projects' publishable key) |
 
@@ -22,7 +23,7 @@ Rotate **all** of these the moment a handoff happens, even if the prior owner is
 | Credential | Where it's used | Rotation notes |
 |---|---|---|
 | `DATABASE_URL` | `apps/api` | If the Postgres instance itself transfers with the Railway project, the connection string/password should still be rotated post-transfer (Railway plugin settings → regenerate credentials) |
-| `STAFF_JWT_SECRET`, `QR_SIGNING_SECRET` | `apps/api` | Random secrets, no external account — just regenerate (`openssl rand -hex 32`) and reset on Railway |
+| `STAFF_JWT_SECRET`, `QR_SIGNING_SECRET`, `KIOSK_JWT_SECRET` | `apps/api` | Random secrets, no external account — just regenerate (`openssl rand -hex 32`) and reset on Railway. Rotating `KIOSK_JWT_SECRET` invalidates every already-registered kiosk device's token, forcing them to re-register (see `/kiosk-devices` in `CLAUDE.md` §10) — expected and correct on handoff, not a bug |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `apps/api` (secret + webhook secret), `apps/web` (publishable key) | New Stripe account → new keys entirely; also delete the old webhook endpoint and create a new one pointed at whatever API domain the new owner ends up with |
 | `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `apps/api` (secret key, for token verification), `apps/web` (both) | If transferring the Clerk *application* itself (recommended, see table above), these keys stay the same — only rotate if creating a brand-new Clerk instance instead |
 
@@ -38,7 +39,7 @@ Rotate **all** of these the moment a handoff happens, even if the prior owner is
 
 ## Not yet applicable (added when their phase lands)
 
-- Vercel project transfers for `apps/marketing`/`scan-station` (Phases 4–5, once those are deployed)
+- Vercel project transfer for `apps/marketing` (Phase 5, once deployed)
 - Domain registrar / DNS transfer (once a domain is chosen)
 - Stripe Connect platform transfer (Phase 6 — vendor/coach payouts)
 - Twilio account transfer (only if Twilio ends up used for SMS notification fallback in Phase 6 — member auth itself is Clerk, not Twilio)

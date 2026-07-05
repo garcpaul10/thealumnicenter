@@ -27,13 +27,20 @@ export async function staffUsersRoutes(app: FastifyInstance) {
     },
   );
 
-  app.patch<{ Params: { id: string }; Body: Partial<{ name: string; role: "admin" | "staff"; password: string }> }>(
+  app.patch<{
+    Params: { id: string };
+    Body: Partial<{ name: string; role: "admin" | "staff"; password: string; kioskPin: string }>;
+  }>(
     "/staff-users/:id",
     { preHandler: requireAdminAuth },
     async (request, reply) => {
-      const { password, ...rest } = request.body;
+      const { password, kioskPin, ...rest } = request.body;
       const update: Record<string, unknown> = { ...rest };
       if (password) update.passwordHash = await hashPassword(password);
+      // Separate from dashboard login password — this is the short PIN a
+      // staff member enters on a scan-station kiosk to unlock staff mode
+      // (comps/overrides/manual lookup). See CLAUDE.md §4.
+      if (kioskPin) update.kioskPinHash = await hashPassword(kioskPin);
 
       const [staffUser] = await app.db
         .update(staffUsers)

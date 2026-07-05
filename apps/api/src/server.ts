@@ -24,6 +24,10 @@ import { memberOfferingsRoutes } from "./routes/member-offerings.js";
 import { reservationsRoutes } from "./routes/reservations.js";
 import { splitRequestsRoutes } from "./routes/split-requests.js";
 import { stripeWebhookRoutes } from "./routes/webhooks-stripe.js";
+import { kioskDevicesRoutes } from "./routes/kiosk-devices.js";
+import { scanStationRoutes } from "./routes/scan-station.js";
+import { menuItemsRoutes } from "./routes/menu-items.js";
+import { vendorOrdersRoutes } from "./routes/vendor-orders.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -32,7 +36,7 @@ export async function buildServer() {
   app.decorate("db", db);
 
   await app.register(cors, {
-    origin: [env.adminAppOrigin, env.webAppOrigin],
+    origin: [env.adminAppOrigin, env.webAppOrigin, env.scanStationAppOrigin],
     credentials: true,
   });
 
@@ -56,6 +60,13 @@ export async function buildServer() {
   await app.register(gamesRoutes);
   await app.register(enrollmentsRoutes);
   await app.register(membersRoutes);
+  await app.register(kioskDevicesRoutes);
+  await app.register(menuItemsRoutes);
+
+  // Scan-station app (apps/scan-station) — kiosk-device JWT auth
+  // (requireKioskAuth/requireKioskStaffAuth), not the staff dashboard JWT.
+  await app.register(scanStationRoutes);
+  await app.register(vendorOrdersRoutes);
 
   // Stripe webhook — its own top-level path, matches what's configured in
   // the Stripe dashboard; not under /member since Stripe calls it directly.
