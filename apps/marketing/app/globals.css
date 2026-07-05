@@ -14,3 +14,37 @@ body {
 .animate-pulse-dot {
   animation: pulse-dot 1.6s ease-in-out infinite;
 }
+
+@keyframes blob-drift-1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(6%, 8%) scale(1.08); }
+  66% { transform: translate(-4%, 4%) scale(0.96); }
+}
+
+@keyframes blob-drift-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-8%, -5%) scale(1.05); }
+  66% { transform: translate(5%, -8%) scale(0.94); }
+}
+
+.animate-blob-1 {
+  animation: blob-drift-1 16s ease-in-out infinite;
+}
+
+.animate-blob-2 {
+  animation: blob-drift-2 20s ease-in-out infinite;
+}
+
+.glass {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.glass-light {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}

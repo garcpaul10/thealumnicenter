@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { SiteHeader } from "../../components/SiteHeader";
 import { SiteFooter } from "../../components/SiteFooter";
+import { BlobBackground } from "../../components/BlobBackground";
 import { fetchLeagues, fetchLeagueStandings } from "@/lib/api";
 
 export default async function LeagueStandingsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -12,7 +13,8 @@ export default async function LeagueStandingsPage({ params }: { params: Promise<
   return (
     <main>
       <SiteHeader />
-      <section className="px-6 py-20 text-center sm:px-10">
+      <section className="relative overflow-hidden px-6 py-20 text-center sm:px-10">
+        <BlobBackground variant="light" />
         <p className="mb-4 text-xs tracking-[0.3em] text-neutral-400">{(league.sportName ?? "LEAGUE").toUpperCase()}</p>
         <h1 className="mx-auto max-w-xl text-4xl font-semibold tracking-tight sm:text-5xl">{league.name}</h1>
       </section>

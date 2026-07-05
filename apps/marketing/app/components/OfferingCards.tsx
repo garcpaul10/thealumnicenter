@@ -1,25 +1,40 @@
+import Image from "next/image";
+import Link from "next/link";
+
 const OFFERINGS = [
-  { title: "Adult leagues", copy: "8-week seasons. Real standings.", from: "from-sky-700", to: "to-brand-dark" },
-  { title: "Camps & lessons", copy: "Coached, for every age.", from: "from-amber-700", to: "to-amber-900" },
-  { title: "Open play", copy: "Walk in, scan your card, play.", from: "from-emerald-700", to: "to-emerald-900" },
-  { title: "Book a court", copy: "Reserve a space, split the cost.", from: "from-orange-700", to: "to-orange-900" },
+  { title: "Adult leagues", copy: "8-week seasons. Real standings.", href: "/leagues", seed: "alumni-league" },
+  { title: "Camps & lessons", copy: "Coached, for every age.", href: "/sports", seed: "alumni-camp" },
+  { title: "Open play", copy: "Walk in, scan your card, play.", href: "/sports", seed: "alumni-openplay" },
+  { title: "Book a court", copy: "Reserve a space, split the cost.", href: "/sports", seed: "alumni-court" },
 ];
 
-/** Card-style offering grid, Apple-restrained: no copy beyond one short line, the color block stands in for real facility photography (see CLAUDE.md §5/§11 — a real photo shoot is a flagged, not-yet-done dependency). */
+/**
+ * Card-style offering grid with real (stock-placeholder, see CLAUDE.md
+ * §5/§11) photography instead of flat color blocks, glassmorphic text
+ * overlay, and a hover zoom for a more "high-end app" feel.
+ */
 export function OfferingCards() {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
       {OFFERINGS.map((offering) => (
-        <div
+        <Link
           key={offering.title}
-          className="group overflow-hidden rounded-2xl border border-neutral-200 transition-transform duration-200 hover:-translate-y-1"
+          href={offering.href}
+          className="group relative h-56 overflow-hidden rounded-3xl shadow-xl shadow-neutral-900/5"
         >
-          <div className={`h-36 bg-gradient-to-br ${offering.from} ${offering.to}`} />
-          <div className="p-5">
+          <Image
+            src={`https://picsum.photos/seed/${offering.seed}/800/600`}
+            alt=""
+            fill
+            className="object-cover transition-transform duration-500 group-hover:scale-110"
+            sizes="(min-width: 640px) 50vw, 100vw"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+          <div className="glass absolute inset-x-3 bottom-3 rounded-2xl p-4 text-white">
             <p className="text-[15px] font-semibold">{offering.title}</p>
-            <p className="mt-1 text-sm text-neutral-500">{offering.copy}</p>
+            <p className="mt-1 text-sm text-white/80">{offering.copy}</p>
           </div>
-        </div>
+        </Link>
       ))}
     </div>
   );
