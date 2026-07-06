@@ -1,5 +1,5 @@
 import { apiFetch } from "../../../lib/api";
-import { uploadSiteImageAction } from "./actions";
+import { UploadForm } from "./UploadForm";
 
 interface SiteImageSlot {
   slotKey: string;
@@ -48,22 +48,7 @@ export default async function SitePhotosPage() {
               {slot.updatedAt && (
                 <p className="mt-0.5 text-xs text-slate-400">Updated {new Date(slot.updatedAt).toLocaleDateString()}</p>
               )}
-              <form action={uploadSiteImageAction} className="mt-3">
-                <input type="hidden" name="slotKey" value={slot.slotKey} />
-                <input
-                  type="file"
-                  name="file"
-                  accept="image/*"
-                  required
-                  className="block w-full text-xs text-slate-500 file:mr-2 file:rounded-md file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-white"
-                />
-                <button
-                  type="submit"
-                  className="mt-2 w-full rounded-md bg-slate-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
-                >
-                  Upload
-                </button>
-              </form>
+              <UploadForm slotKey={slot.slotKey} />
             </div>
           </div>
         ))}

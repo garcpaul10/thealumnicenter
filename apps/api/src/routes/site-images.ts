@@ -6,7 +6,7 @@ import { listSiteImages, upsertSiteImage, STATIC_SITE_IMAGE_SLOTS } from "../sit
 import { sports } from "@alumni/db";
 import { env } from "../env.js";
 
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024; // 8MB — generous for a compressed photo, small enough to reject accidental huge uploads
+const MAX_UPLOAD_BYTES = 20 * 1024 * 1024; // 20MB — modern phone camera photos (especially HEIC/ProRAW) routinely land in the 8-15MB range; 8MB was rejecting real, unremarkable photos
 
 /**
  * Staff-facing image management for apps/marketing's photo slots (hero,
@@ -44,7 +44,20 @@ export async function siteImagesRoutes(app: FastifyInstance) {
         return reply.code(400).send({ error: "Only image uploads are allowed" });
       }
 
-      const buffer = await file.toBuffer();
+      // toBuffer() throws FST_REQ_FILE_TOO_LARGE (a Fastify error, not a
+      // plain Error) once the stream hits the multipart plugin's fileSize
+      // limit above — caught here so the client gets a clean, expected JSON
+      // error instead of an unhandled exception surfacing as a generic 500.
+      let buffer: Buffer;
+      try {
+        buffer = await file.toBuffer();
+      } catch (err) {
+        if ((err as { code?: string }).code === "FST_REQ_FILE_TOO_LARGE") {
+          return reply.code(413).send({ error: `Image is too large — max ${MAX_UPLOAD_BYTES / (1024 * 1024)}MB` });
+        }
+        throw err;
+      }
+
       const blob = await put(`site-images/${slotKey}-${Date.now()}`, buffer, {
         access: "public",
         contentType: file.mimetype,
