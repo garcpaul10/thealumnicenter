@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { SiteHeader } from "../../components/SiteHeader";
 import { SiteFooter } from "../../components/SiteFooter";
-import { fetchSports, fetchOfferings } from "@/lib/api";
+import { fetchSports, fetchOfferings, fetchSiteImages } from "@/lib/api";
+import { resolveImage } from "@/lib/images";
 
 export async function generateStaticParams() {
   const sports = await fetchSports();
@@ -12,7 +13,11 @@ export async function generateStaticParams() {
 
 export default async function SportDetailPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const [sports, offerings] = await Promise.all([fetchSports(), fetchOfferings({ sportSlug: slug })]);
+  const [sports, offerings, images] = await Promise.all([
+    fetchSports(),
+    fetchOfferings({ sportSlug: slug }),
+    fetchSiteImages(),
+  ]);
   const sport = sports.find((s) => s.slug === slug);
   if (!sport) notFound();
 
@@ -21,7 +26,7 @@ export default async function SportDetailPage({ params }: { params: Promise<{ sl
       <SiteHeader />
 
       <section className="relative mx-6 h-56 overflow-hidden rounded-3xl shadow-xl shadow-neutral-900/10 sm:mx-10 sm:h-72">
-        <Image src={`https://picsum.photos/seed/alumni-sport-${sport.slug}/1400/700`} alt="" fill priority className="object-cover" sizes="100vw" />
+        <Image src={resolveImage(images, `sport:${sport.slug}`, 1400, 700)} alt="" fill priority className="object-cover" sizes="100vw" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
         <div className="absolute inset-x-6 bottom-6 sm:inset-x-10">
           <p className="mb-2 text-xs tracking-[0.3em] text-sky-200">SPORT</p>

@@ -3,12 +3,13 @@ import Link from "next/link";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { BlobBackground } from "../components/BlobBackground";
-import { fetchSports } from "@/lib/api";
+import { fetchSports, fetchSiteImages } from "@/lib/api";
+import { resolveImage } from "@/lib/images";
 
 export const metadata = { title: "Sports — The Alumni Center" };
 
 export default async function SportsPage() {
-  const sports = await fetchSports();
+  const [sports, images] = await Promise.all([fetchSports(), fetchSiteImages()]);
 
   return (
     <main>
@@ -31,7 +32,7 @@ export default async function SportsPage() {
                 className="group relative h-40 overflow-hidden rounded-2xl shadow-lg shadow-neutral-900/5"
               >
                 <Image
-                  src={`https://picsum.photos/seed/alumni-sport-${sport.slug}/500/400`}
+                  src={resolveImage(images, `sport:${sport.slug}`, 500, 400)}
                   alt=""
                   fill
                   className="object-cover transition-transform duration-500 group-hover:scale-110"

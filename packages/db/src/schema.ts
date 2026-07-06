@@ -553,3 +553,20 @@ export const notifications = pgTable("notifications", {
   payload: jsonb("payload").notNull().default(sql`'{}'::jsonb`),
   createdAt: createdAt(),
 });
+
+// ---------------------------------------------------------------------------
+// Site images — apps/marketing's photo slots, staff-editable via apps/admin.
+// One row per named slot ("hero", "sport:basketball", "offering:leagues",
+// "about"); actual files live in Vercel Blob storage, this table just
+// tracks which URL is currently assigned to which slot.
+// ---------------------------------------------------------------------------
+
+export const siteImages = pgTable("site_images", {
+  id: id(),
+  slotKey: varchar("slot_key", { length: 100 }).notNull(),
+  imageUrl: text("image_url").notNull(),
+  updatedBy: uuid("updated_by").references(() => staffUsers.id),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, (table) => ({
+  slotKeyUnique: uniqueIndex("site_images_slot_key_unique").on(table.slotKey),
+}));

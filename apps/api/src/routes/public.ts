@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { and, eq, gte, lte, sql } from "drizzle-orm";
 import { scheduleBlocks, sports, spaces, offerings, accounts, tokenLedger, teams, standings, tokenPackages } from "@alumni/db";
 import { rankStandings } from "@alumni/shared";
+import { listSiteImages } from "../site-images/site-image-service.js";
 
 type OfferingType = "walk_in" | "free_play_pass" | "league" | "camp" | "reservation" | "lesson" | "clinic";
 
@@ -139,5 +140,12 @@ export async function publicRoutes(app: FastifyInstance) {
       .from(tokenPackages)
       .where(eq(tokenPackages.active, true))
       .orderBy(tokenPackages.sortOrder);
+  });
+
+  app.get("/public/site-images", async () => {
+    const rows = await listSiteImages(app.db);
+    const bySlot: Record<string, string> = {};
+    for (const row of rows) bySlot[row.slotKey] = row.imageUrl;
+    return bySlot;
   });
 }

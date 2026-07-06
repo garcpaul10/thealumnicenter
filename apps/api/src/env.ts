@@ -49,4 +49,7 @@ export const env = {
   get marketingAppOrigin() {
     return process.env.MARKETING_APP_ORIGIN ?? "http://localhost:3014";
   },
+  get blobReadWriteToken() {
+    return required("BLOB_READ_WRITE_TOKEN");
+  },
 };

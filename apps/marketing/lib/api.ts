@@ -116,3 +116,10 @@ export async function fetchTokenPackages(): Promise<PublicTokenPackage[]> {
   if (!res.ok) return [];
   return res.json();
 }
+
+/** slotKey -> real uploaded photo URL (see apps/admin's "Site Photos" page). Empty object if nothing's been uploaded yet — callers fall back to a Picsum placeholder per slot. */
+export async function fetchSiteImages(): Promise<Record<string, string>> {
+  const res = await fetch(`${apiUrl()}/public/site-images`, { next: { revalidate: 60 } });
+  if (!res.ok) return {};
+  return res.json();
+}

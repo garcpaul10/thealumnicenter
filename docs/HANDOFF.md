@@ -16,6 +16,7 @@ What changes hands when this project transfers to a new owner, what credentials 
 | Vercel project `play-on1/the-alumni-center-marketing` | Hosts `apps/marketing` (public site), same transfer method and caveats as the admin project above. No login secrets at all — only calls unauthenticated `/public/*` API routes | Same as above |
 | Clerk instance (phone-OTP member auth) | Backs `apps/web`'s sign-in/sign-up and `apps/api`'s member-auth token verification | Clerk supports transferring an application to another account/organization from its dashboard — do this rather than recreating the instance, since recreating changes every member's Clerk user ID and would orphan `accounts.clerk_user_id` links |
 | Stripe account (test mode) | Token package checkout + the `checkout.session.completed` webhook feeding the ledger | Stripe doesn't support account transfer between unrelated owners — the new owner creates their own account, and its keys + a freshly created webhook endpoint replace the old ones everywhere they're set (Railway `api`, both Vercel projects' publishable key) |
+| Vercel Blob store `the-alumni-center-photos` | Real uploaded site photos for `apps/marketing` (staff-uploaded via `apps/admin`'s "Site Photos" page); `site_images` rows just store URLs into this store | Vercel Blob stores aren't part of a project transfer — the new owner creates their own store (see `docs/DEPLOYMENT.md`) and a fresh `BLOB_READ_WRITE_TOKEN`. Existing photo URLs in `site_images` will 404 once the old store is deleted; re-upload each slot from `apps/admin`'s "Site Photos" page after transfer, or export/copy the blobs first if continuity matters |
 
 ## Credentials to rotate on handoff
 
@@ -27,6 +28,7 @@ Rotate **all** of these the moment a handoff happens, even if the prior owner is
 | `STAFF_JWT_SECRET`, `QR_SIGNING_SECRET`, `KIOSK_JWT_SECRET` | `apps/api` | Random secrets, no external account — just regenerate (`openssl rand -hex 32`) and reset on Railway. Rotating `KIOSK_JWT_SECRET` invalidates every already-registered kiosk device's token, forcing them to re-register (see `/kiosk-devices` in `CLAUDE.md` §10) — expected and correct on handoff, not a bug |
 | `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` | `apps/api` (secret + webhook secret), `apps/web` (publishable key) | New Stripe account → new keys entirely; also delete the old webhook endpoint and create a new one pointed at whatever API domain the new owner ends up with |
 | `CLERK_SECRET_KEY`, `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | `apps/api` (secret key, for token verification), `apps/web` (both) | If transferring the Clerk *application* itself (recommended, see table above), these keys stay the same — only rotate if creating a brand-new Clerk instance instead |
+| `BLOB_READ_WRITE_TOKEN` | `apps/api` | Tied to the Vercel Blob store, not rotatable independently — the new owner's fresh store (see table above) comes with its own token; set it on Railway's `api` service |
 
 *(This table grows as Twilio auth tokens and web push VAPID keys are introduced in later phases — each gets a row here in the same commit it's added to `.env.example`.)*
 

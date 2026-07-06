@@ -2,10 +2,14 @@ import Image from "next/image";
 import { SiteHeader } from "../components/SiteHeader";
 import { SiteFooter } from "../components/SiteFooter";
 import { BlobBackground } from "../components/BlobBackground";
+import { fetchSiteImages } from "@/lib/api";
+import { resolveImage } from "@/lib/images";
 
 export const metadata = { title: "About & locations — The Alumni Center" };
 
-export default function AboutPage() {
+export default async function AboutPage() {
+  const images = await fetchSiteImages();
+
   return (
     <main>
       <SiteHeader />
@@ -20,7 +24,7 @@ export default function AboutPage() {
       </section>
 
       <section className="relative mx-6 h-56 overflow-hidden rounded-3xl shadow-xl shadow-neutral-900/10 sm:mx-10 sm:h-72">
-        <Image src="https://picsum.photos/seed/alumni-about/1400/700" alt="" fill className="object-cover" sizes="100vw" />
+        <Image src={resolveImage(images, "about", 1400, 700)} alt="" fill className="object-cover" sizes="100vw" />
       </section>
 
       <section className="mx-auto max-w-2xl px-6 py-16 sm:px-10">

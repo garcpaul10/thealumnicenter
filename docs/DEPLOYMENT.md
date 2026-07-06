@@ -128,6 +128,23 @@ The response's `secret` field is `STRIPE_WEBHOOK_SECRET` on the `api` Railway se
 
 **Stripe Connect** (vendor/coach payouts) is Phase 6, not yet set up.
 
+## Vercel Blob — site photo storage
+
+Real uploaded photos for `apps/marketing` (see `apps/admin`'s "Site Photos" page) live in [Vercel Blob](https://vercel.com/docs/vercel-blob), not the filesystem — Vercel's production filesystem is read-only, and `apps/api` runs on Railway anyway, so it can't rely on any platform's local disk.
+
+1. Create a public Blob store — public because these are photos apps/marketing (no auth) needs to display:
+   ```sh
+   vercel blob create-store the-alumni-center-photos --access public --yes
+   ```
+2. **Manual dashboard step, no CLI equivalent exists:** connect the store to a Vercel project (any one of `apps/admin`/`apps/web`/`apps/marketing`/`apps/scan-station` works — Blob access isn't project-scoped, just the *first* environment variable auto-injection is) via that project's **Storage** tab → **Connect Store**. This is what actually mints a `BLOB_READ_WRITE_TOKEN` — `vercel blob create-store`/`get-store` alone don't expose it.
+3. Copy that token from the connected project's env vars (`vercel env pull` in that project's directory, or the dashboard) and set it on Railway's `api` service — this is the service that actually performs uploads:
+   ```sh
+   railway variable set "BLOB_READ_WRITE_TOKEN=<token>" --service api
+   ```
+4. Add the same value to local `.env` for local dev uploads to work.
+
+`apps/api/src/routes/site-images.ts` is the only code that writes to Blob (mirrors the ledger's single-write-path convention) — staff upload via `apps/admin`'s "Site Photos" page, which forwards the file server-side to this route; `apps/marketing` only ever reads the resulting URLs back via the fully public `GET /public/site-images`, with a Picsum placeholder fallback for any slot nothing's been uploaded to yet.
+
 ## Twilio
 
 Not applicable — member auth is Clerk (phone-OTP), not raw Twilio Verify, per the decision in `CLAUDE.md` §4. Twilio may still be used later for SMS notification fallback (Phase 6) if that's not also handled by Clerk/another provider — revisit at that phase.

@@ -8,17 +8,18 @@ import { TopTicker } from "./components/TopTicker";
 import { OfferingCards } from "./components/OfferingCards";
 import { ParallaxImage } from "./components/ParallaxImage";
 import { BlobBackground } from "./components/BlobBackground";
-import { fetchTokenPackages } from "@/lib/api";
+import { fetchTokenPackages, fetchSiteImages } from "@/lib/api";
+import { resolveImage } from "@/lib/images";
 
 export default async function HomePage() {
   const webAppUrl = process.env.NEXT_PUBLIC_WEB_APP_URL ?? "#";
-  const packages = await fetchTokenPackages();
+  const [packages, images] = await Promise.all([fetchTokenPackages(), fetchSiteImages()]);
   const starterPackage = packages[0];
 
   return (
     <main>
       <section className="relative flex h-[96vh] min-h-[640px] flex-col overflow-hidden">
-        <ParallaxImage src="https://picsum.photos/seed/alumnicenter-main-hero/1800/1400" alt="" />
+        <ParallaxImage src={resolveImage(images, "hero", 1800, 1400)} alt="" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/45 to-night" />
         <BlobBackground />
 

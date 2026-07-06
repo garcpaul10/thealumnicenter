@@ -10,6 +10,9 @@ const nextConfig = {
     remotePatterns: [
       { protocol: "https", hostname: "picsum.photos" },
       { protocol: "https", hostname: "fastly.picsum.photos" },
+      // Real uploaded site photos (apps/admin's "Site Photos" page) land in
+      // Vercel Blob, served from a per-project *.public.blob.vercel-storage.com subdomain.
+      { protocol: "https", hostname: "*.public.blob.vercel-storage.com" },
     ],
   },
 };

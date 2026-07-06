@@ -20,6 +20,7 @@ const NAV_ITEMS = [
   { href: "/partners", label: "Vendors & Coaches" },
   { href: "/members", label: "Member Lookup" },
   { href: "/staff", label: "Staff Users" },
+  { href: "/site-photos", label: "Site Photos" },
 ];
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

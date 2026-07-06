@@ -29,6 +29,7 @@ import { scanStationRoutes } from "./routes/scan-station.js";
 import { menuItemsRoutes } from "./routes/menu-items.js";
 import { vendorOrdersRoutes } from "./routes/vendor-orders.js";
 import { publicRoutes } from "./routes/public.js";
+import { siteImagesRoutes } from "./routes/site-images.js";
 
 export async function buildServer() {
   const app = Fastify({ logger: true });
@@ -68,6 +69,7 @@ export async function buildServer() {
   await app.register(membersRoutes);
   await app.register(kioskDevicesRoutes);
   await app.register(menuItemsRoutes);
+  await app.register(siteImagesRoutes);
 
   // Scan-station app (apps/scan-station) — kiosk-device JWT auth
   // (requireKioskAuth/requireKioskStaffAuth), not the staff dashboard JWT.
