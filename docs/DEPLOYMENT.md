@@ -132,14 +132,27 @@ The response's `secret` field is `STRIPE_WEBHOOK_SECRET` on the `api` Railway se
 
 Real uploaded photos for `apps/marketing` (see `apps/admin`'s "Site Photos" page) live in [Vercel Blob](https://vercel.com/docs/vercel-blob), not the filesystem — Vercel's production filesystem is read-only, and `apps/api` runs on Railway anyway, so it can't rely on any platform's local disk.
 
+> **Status:** Live. Public Blob store `the-alumni-center-photos` created and connected to the `play-on1/the-alumni-center-admin` Vercel project; `BLOB_READ_WRITE_TOKEN` is set on Railway's `api` service. Verified end-to-end with a real upload (`POST /site-images/hero`) that produced a real, publicly resolvable Blob URL, then cleaned up.
+
+Steps actually run, for repeating on a fresh account at handoff:
+
 1. Create a public Blob store — public because these are photos apps/marketing (no auth) needs to display:
    ```sh
    vercel blob create-store the-alumni-center-photos --access public --yes
    ```
-2. **Manual dashboard step, no CLI equivalent exists:** connect the store to a Vercel project (any one of `apps/admin`/`apps/web`/`apps/marketing`/`apps/scan-station` works — Blob access isn't project-scoped, just the *first* environment variable auto-injection is) via that project's **Storage** tab → **Connect Store**. This is what actually mints a `BLOB_READ_WRITE_TOKEN` — `vercel blob create-store`/`get-store` alone don't expose it.
-3. Copy that token from the connected project's env vars (`vercel env pull` in that project's directory, or the dashboard) and set it on Railway's `api` service — this is the service that actually performs uploads:
+2. Connect the store to a Vercel project (any one of `apps/admin`/`apps/web`/`apps/marketing`/`apps/scan-station` works — Blob access isn't project-scoped, just the *first* environment variable auto-injection is). There's no documented `vercel` CLI subcommand for this, but it's reachable directly via Vercel's REST API rather than only the dashboard's Storage tab → Connect Store button:
    ```sh
-   railway variable set "BLOB_READ_WRITE_TOKEN=<token>" --service api
+   curl -X POST "https://api.vercel.com/v1/storage/stores/<storeId>/connections?teamId=<teamId>" \
+     -H "Authorization: Bearer <vercel CLI token, from ~/Library/Application Support/com.vercel.cli/auth.json>" \
+     -H "Content-Type: application/json" \
+     -d '{"projectId":"<projectId>","envVarEnvironments":["production","preview","development"],"type":"integration"}'
+   ```
+   This is what actually mints a `BLOB_READ_WRITE_TOKEN` and writes it into that project's env vars — `vercel blob create-store`/`get-store` alone don't expose the token.
+3. Pull the token from the connected project and set it on Railway's `api` service — this is the service that actually performs uploads:
+   ```sh
+   vercel env pull .env.blob.tmp --environment production --yes   # from the connected project's directory
+   railway variable set "BLOB_READ_WRITE_TOKEN=<token from .env.blob.tmp>" --service api
+   rm .env.blob.tmp   # never commit this
    ```
 4. Add the same value to local `.env` for local dev uploads to work.
 
