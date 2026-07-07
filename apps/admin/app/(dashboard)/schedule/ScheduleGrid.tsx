@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { DndContext, useDraggable, useDroppable, type DragEndEvent } from "@dnd-kit/core";
 import type { ScheduleBlock, ScheduleMode, Space, Sport } from "../../../lib/types";
 import { createBlockAction, moveBlockAction, updateBlockAction, deleteBlockAction } from "./actions";
+import { MODE_STYLES, MODE_LABELS } from "./scheduleStyles";
 
 const START_HOUR = 6;
 const END_HOUR = 23;
@@ -12,22 +13,6 @@ const SLOT_MINUTES = 30;
 const SLOTS = ((END_HOUR - START_HOUR) * 60) / SLOT_MINUTES;
 const SLOT_HEIGHT_PX = 22;
 const DEFAULT_DURATION_MINUTES = 60;
-
-const MODE_STYLES: Record<ScheduleMode, string> = {
-  open_play: "bg-blue-100 border-blue-400 text-blue-900",
-  reservable: "bg-amber-100 border-amber-400 text-amber-900",
-  league: "bg-purple-100 border-purple-400 text-purple-900",
-  camp: "bg-green-100 border-green-400 text-green-900",
-  closed: "bg-slate-200 border-slate-400 text-slate-700",
-};
-
-const MODE_LABELS: Record<ScheduleMode, string> = {
-  open_play: "Open Play",
-  reservable: "Reservable",
-  league: "League",
-  camp: "Camp",
-  closed: "Closed",
-};
 
 function slotToDate(date: string, slotIndex: number): Date {
   const minutes = START_HOUR * 60 + slotIndex * SLOT_MINUTES;

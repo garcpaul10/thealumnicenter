@@ -117,9 +117,17 @@ export async function fetchTokenPackages(): Promise<PublicTokenPackage[]> {
   return res.json();
 }
 
-/** slotKey -> real uploaded photo URL (see apps/admin's "Site Photos" page). Empty object if nothing's been uploaded yet — callers fall back to a Picsum placeholder per slot. */
+/**
+ * slotKey -> real uploaded photo URL (see apps/admin's "Site Photos" page).
+ * Empty object if nothing's been uploaded yet — callers fall back to a
+ * Picsum placeholder per slot. Deliberately `no-store`, not the 60s
+ * revalidate used for other catalog-ish reads — staff expect an upload to
+ * show up immediately everywhere, and the 60s window was creating a
+ * confusing few seconds where different pages showed different slots as
+ * "still on the placeholder" right after a fresh upload.
+ */
 export async function fetchSiteImages(): Promise<Record<string, string>> {
-  const res = await fetch(`${apiUrl()}/public/site-images`, { next: { revalidate: 60 } });
+  const res = await fetch(`${apiUrl()}/public/site-images`, { cache: "no-store" });
   if (!res.ok) return {};
   return res.json();
 }

@@ -58,7 +58,13 @@ export async function siteImagesRoutes(app: FastifyInstance) {
         throw err;
       }
 
-      const blob = await put(`site-images/${slotKey}-${Date.now()}`, buffer, {
+      // Slot keys like "sport:basketball" contain a colon — safe as a DB
+      // value, but Vercel Blob URL-encodes colons in the object path, which
+      // then round-trips through Next's image proxy oddly (double-encoded
+      // %253A). Swapped for a hyphen here purely for a cleaner Blob URL;
+      // has no bearing on the actual slotKey stored in site_images.
+      const blobSafeSlotKey = slotKey.replace(/:/g, "-");
+      const blob = await put(`site-images/${blobSafeSlotKey}-${Date.now()}`, buffer, {
         access: "public",
         contentType: file.mimetype,
         token: env.blobReadWriteToken,
