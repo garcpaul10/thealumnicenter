@@ -32,10 +32,10 @@ export default async function HomePage() {
           <Image
             src="/alumni-center-logo.png"
             alt="The Alumni Center"
-            width={320}
-            height={320}
+            width={480}
+            height={480}
             priority
-            className="h-32 w-auto drop-shadow-2xl sm:h-44"
+            className="h-48 w-auto drop-shadow-2xl sm:h-72"
           />
           <p className="mb-5 mt-6 text-xs tracking-[0.3em] text-sky-200">VARSITY FOR EVERYONE</p>
           <h1 className="max-w-2xl text-5xl font-semibold leading-[1.05] tracking-tight drop-shadow-lg sm:text-7xl">

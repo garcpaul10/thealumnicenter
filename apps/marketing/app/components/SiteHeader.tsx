@@ -1,4 +1,3 @@
-import Image from "next/image";
 import Link from "next/link";
 
 const NAV_LINKS = [
@@ -13,8 +12,9 @@ const NAV_LINKS = [
  * text, glass pill nav) — the caller is responsible for absolute-positioning
  * it (see homepage, which wraps it with a ticker in one positioned
  * container). `variant="light"` (default) is the normal in-flow header for
- * every other page. Logo is intentionally large (h-20+) per explicit
- * feedback that it was too small to actually read before.
+ * every other page. The image logo lives only in the homepage hero now
+ * (made much bigger there) — the header keeps just a text wordmark so the
+ * two don't compete for attention right on top of each other.
  */
 export function SiteHeader({ variant = "light" }: { variant?: "light" | "overlay" }) {
   const webAppUrl = process.env.NEXT_PUBLIC_WEB_APP_URL ?? "#";
@@ -22,15 +22,11 @@ export function SiteHeader({ variant = "light" }: { variant?: "light" | "overlay
 
   return (
     <header className="relative flex items-center justify-between px-6 py-6 sm:px-10">
-      <Link href="/" className="shrink-0">
-        <Image
-          src="/alumni-center-logo.png"
-          alt="The Alumni Center"
-          width={220}
-          height={220}
-          priority
-          className={`w-auto ${overlay ? "h-24 drop-shadow-lg sm:h-28" : "h-20 sm:h-24"}`}
-        />
+      <Link
+        href="/"
+        className={`shrink-0 text-lg font-semibold tracking-tight ${overlay ? "text-white drop-shadow-lg" : "text-neutral-900"}`}
+      >
+        The Alumni Center
       </Link>
       <nav
         className={`hidden shrink-0 gap-1 whitespace-nowrap rounded-full px-2 py-2 text-sm font-medium sm:flex ${
